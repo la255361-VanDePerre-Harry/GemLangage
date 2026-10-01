@@ -19,7 +19,7 @@ import java.util.List;
  */
 public class Interpreter {
     /** Global runtime memory environment storing variable and constant bindings. */
-    private final Environment environment = new Environment();
+    private Environment environment = new Environment(null);
 
     /**
      * Executes a complete program represented as a sequential list of AST statements.
@@ -47,6 +47,9 @@ public class Interpreter {
      */
     private void execute(Stmt stmt) {
         switch (stmt) {
+            // Block Statement ({ ... })
+            case BlockStmt blockStmt -> executeBlock(blockStmt.getStatements(), new Environment(this.environment));
+            
             // Variable / Constant Declaration
             case VarDeclStmt decl -> {
                 Object value = evaluate(decl.getInitializer());
@@ -170,6 +173,29 @@ public class Interpreter {
         }
 
         throw new RuntimeException("Ligne " + operator.getLine() + " : Opérandes incompatibles pour l'opération '" + operator.getLexeme() + "'.");
+    }
+
+    /**
+     * Executes a list of statements within a new scoped environment.
+     * <p>
+     * <b>Preconditions:</b> {@code statements} and {@code environment} must not be {@code null}.<br>
+     * <b>Postconditions:</b> Restores the previous enclosing environment upon completion or exception.
+     * </p>
+     *
+     * @param statements  The {@link List} of {@link Stmt} nodes to execute inside the block.
+     * @param environment The local {@link Environment} scoped specifically for this block.
+     */
+    public void executeBlock(List<Stmt> statements, Environment environment) {
+        Environment previous = this.environment;
+
+        try {
+            this.environment = environment;
+            for (Stmt statement : statements) {
+                execute(statement);
+            }
+        } finally {
+            this.environment = previous;
+        }
     }
 
 }

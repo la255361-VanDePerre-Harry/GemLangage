@@ -8,11 +8,11 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Manages runtime memory bindings and symbol tables for the GEM language interpreter.
+ * Stores variable and constant bindings for a specific lexical scope.
  * <p>
- * The {@code Environment} class stores variable values and tracks immutability rules
- * for constants. It provides mechanisms for symbol definition, variable evaluation,
- * and runtime reassignment checking.
+ * Supports nested lexical scoping through an optional link to an enclosing parent
+ * {@code Environment}. Variable lookups and reassignments automatically traverse up the
+ * scope hierarchy until the binding is resolved or a runtime exception is raised.
  * </p>
  *
  * @author Van De Perre Harry
@@ -23,6 +23,16 @@ public class Environment {
     private final Map<String, Object> values = new HashMap<>();
     /** Set tracking variable names declared as immutable constants ('const'). */
     private final Set<String> constants = new HashSet<>();
+    /** Reference to the outer enclosing scope environment, or {@code null} if this is the global scope. */
+    private final Environment enclosing;
+
+    public Environment(){
+        this.enclosing = null;
+    }
+
+    public Environment(Environment enclosing) {
+        this.enclosing = enclosing;
+    }
 
 
     /**
@@ -52,8 +62,8 @@ public class Environment {
     /**
      * Resolves and retrieves the bound runtime value of a given variable token.
      * <p>
-     * <b>Preconditions:</b> The symbol name must exist within {@code values}.<br>
-     * <b>Postconditions:</b> Returns the bound object value associated with the identifier.
+     * Searches the local scope first. If not found, delegates the lookup recursively to the
+     * enclosing parent environment.
      * </p>
      *
      * @param name The identifier {@link Token} containing the variable name and line number (must not be {@code null}).
@@ -66,6 +76,10 @@ public class Environment {
         // Perform memory lookup; return bound runtime object if found.
         if (this.values.containsKey(varName)) return this.values.get(varName);
 
+        // Delegate lookup to enclosing outer scope if variable is not in local scope.
+        if (this.enclosing != null) return this.enclosing.get(name);
+
+
         throw new RuntimeException("Ligne " + name.getLine() + " : Variable non définie '" + varName + "'.");
 
     }
@@ -73,7 +87,7 @@ public class Environment {
     /**
      * Updates the bound value of an existing mutable variable.
      * <p>
-     * <b>Preconditions:</b> The symbol must exist in {@code values} and MUST NOT exist in {@code constants}.<br>
+     * <b>Preconditions:</b> The symbol must exist in {@code values} (or outer scopes) and MUST NOT exist in {@code constants}.<br>
      * <b>Postconditions:</b> The entry in {@code values} is updated with the new object value.
      * </p>
      *
@@ -84,13 +98,24 @@ public class Environment {
     public void assign(Token name, Object value) {
         String varName = name.getLexeme();
 
+        // If variable exists in current local scope
+        if (this.values.containsKey(varName)) {
+            // Protect immutable bindings from mutation attempts.
+            if (this.constants.contains(varName)) {
+                throw new RuntimeException("Ligne " + name.getLine() + " : Impossible de modifier la constante '" + varName + "'.");
+            }
+            // Perform in-place value update in memory map.
+            this.values.put(varName, value);
+            return;
+        }
+
+        // Delegate reassignment to outer enclosing scope if not found locally.
+        if (this.enclosing != null) {
+            this.enclosing.assign(name, value);
+            return;
+        }
+
         // Ensure variable exists before attempting mutation.
-        if (!this.values.containsKey(varName)) throw new RuntimeException("Ligne " + name.getLine() + " : Variable non définie '" + varName + "'.");
-
-        // Protect immutable bindings from mutation attempts.
-        if (this.constants.contains(varName)) throw new RuntimeException("Ligne " + name.getLine() + " : Impossible de modifier la constante '" + varName + "'.");
-
-        // Perform in-place value update in memory map.
-        this.values.put(varName, value);
+        throw new RuntimeException("Ligne " + name.getLine() + " : Variable non définie '" + varName + "'.");
     }
 }
