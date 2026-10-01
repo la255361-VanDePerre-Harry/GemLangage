@@ -39,9 +39,18 @@ public class Parser {
     }
 
     private Stmt statement() {
+        // PRINT
         if (match(TokenType.PRINT)) {
             Expr value = expression();
             return new PrintStmt(value);
+        }
+
+        // Détection de réaffectation
+        if (check(TokenType.IDENTIFIER)) {
+            Token name = advance();
+            consume(TokenType.ASSIGN, "'=' attendu après le nom de la variable.");
+            Expr value = expression();
+            return new AssignStmt(name, value);
         }
         throw new RuntimeException("Ligne " + peek().getLine() + " : Instruction non reconnue '" + peek().getLexeme() + "'");
     }
@@ -51,13 +60,9 @@ public class Parser {
     }
 
     private Expr primary() {
-        if (match(TokenType.NUMBER, TokenType.STRING, TokenType.BOOLEAN)) {
-            return new LiteralExpr(previous().getLexeme());
-        }
+        if (match(TokenType.NUMBER, TokenType.STRING, TokenType.BOOLEAN)) return new LiteralExpr(previous().getLexeme());
 
-        if (match(TokenType.IDENTIFIER)) {
-            return new VariableExpr(previous());
-        }
+        if (match(TokenType.IDENTIFIER)) return new VariableExpr(previous());
 
         throw new RuntimeException("Ligne " + peek().getLine() + " : Expression attendue près de '" + peek().getLexeme() + "'");
     }
@@ -92,9 +97,8 @@ public class Parser {
     }
 
     private Token consume(TokenType type, String message) {
-        if (check(type)) {
-            return advance();
-        }
+        if (check(type)) return advance();
+
         throw new RuntimeException("Ligne " + peek().getLine() + " : " + message);
     }
 }

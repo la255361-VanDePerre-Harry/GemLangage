@@ -14,16 +14,22 @@ public class Interpreter {
     }
 
     private void execute(Stmt stmt) {
-        if (stmt instanceof VarDeclStmt decl) {
-            Object value = evaluate(decl.getInitializer());
-            String name = decl.getName().getLexeme();
+        switch (stmt) {
+            case VarDeclStmt decl -> {
+                Object value = evaluate(decl.getInitializer());
+                String name = decl.getName().getLexeme();
 
-            environment.define(name, value, decl.isConstant());
-        } else if (stmt instanceof PrintStmt printStmt) {
-            Object value = evaluate(printStmt.getExpression());
-            System.out.println(value);
-        } else {
-            throw new RuntimeException("Type d'instruction non supporté à l'exécution.");
+                environment.define(name, value, decl.isConstant());
+            }
+            case PrintStmt printStmt -> {
+                Object value = evaluate(printStmt.getExpression());
+                System.out.println(value);
+            }
+            case AssignStmt assign -> {
+                Object value = evaluate(assign.getValue());
+                environment.assign(assign.getName(), value);
+            }
+            case null, default -> throw new RuntimeException("Type d'instruction non supporté à l'exécution.");
         }
     }
 
