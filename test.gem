@@ -1,8 +1,12 @@
-mut message : string = "Hello"
-print message
+mut x : int = 10
+mut y : int = 100
 
-message = "World"
-print message
+{
+    mut x : int = 20
+    print x
 
-const MAX : int = 100
-MAX = 200
+    y = 200
+}
+
+print x
+print y

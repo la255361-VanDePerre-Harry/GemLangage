@@ -1,6 +1,8 @@
 package interpreter;
 
 import ast.*;
+import lexer.Token;
+import lexer.TokenType;
 
 import java.util.List;
 
@@ -17,7 +19,7 @@ import java.util.List;
  */
 public class Interpreter {
     /** Global runtime memory environment storing variable and constant bindings. */
-    private final Environment environment = new Environment();
+    private Environment environment = new Environment(null);
 
     /**
      * Executes a complete program represented as a sequential list of AST statements.
@@ -45,6 +47,9 @@ public class Interpreter {
      */
     private void execute(Stmt stmt) {
         switch (stmt) {
+            // Block Statement ({ ... })
+            case BlockStmt blockStmt -> executeBlock(blockStmt.getStatements(), new Environment(this.environment));
+            
             // Variable / Constant Declaration
             case VarDeclStmt decl -> {
                 Object value = evaluate(decl.getInitializer());
@@ -83,11 +88,114 @@ public class Interpreter {
      */
     private Object evaluate(Expr expr) {
         // Literal values
-        if (expr instanceof LiteralExpr literal) return literal.getValue();
+        if (expr instanceof LiteralExpr literal) return parseLiteralValue(literal.getValue());
 
         // Variable identifier references
         if (expr instanceof VariableExpr variable) return environment.get(variable.getName());
 
+        // Evaluation of Binary Operations
+        if (expr instanceof BinaryExpr binary) {
+            Object left = evaluate(binary.getLeft());
+            Object right = evaluate(binary.getRight());
+
+            return evaluateBinary(binary.getOperator(), left, right);
+        }
+
         throw new RuntimeException("Expression non supportée à l'exécution : " + expr.getClass().getSimpleName());
     }
+
+    /**
+     * Converts raw literal string representations from the Lexer into typed runtime Java objects.
+     * <p>
+     * Translates boolean string values ("true", "false") to {@link Boolean} instances and
+     * numeric string values to {@link Integer} instances, preserving raw string values otherwise.
+     * </p>
+     *
+     * @param rawValue The raw literal value object to parse (typically a {@link String} from the Lexer).
+     * @return The parsed runtime object ({@link Boolean}, {@link Integer}, or {@link String}).
+     */
+    private Object parseLiteralValue(Object rawValue) {
+        if (rawValue instanceof  String str) {
+
+            // Parse boolean literals
+            if (str.equals("true")) return Boolean.TRUE;
+            if (str.equals("false")) return Boolean.FALSE;
+
+            // Parse integer numeric literals
+            try {
+                return Integer.parseInt(str);
+            } catch (NumberFormatException ignored) {
+                // not an integer, keep it string
+            }
+        }
+        return rawValue;
+    }
+
+    /**
+     * Executes binary operations including arithmetic, string concatenation, equality, and relational comparisons.
+     * <p>
+     * Evaluates operand types and applies the appropriate operation according to the GEM language specifications.
+     * </p>
+     *
+     * @param operator The {@link Token} representing the binary operator.
+     * @param left     The evaluated runtime value of the left-hand operand.
+     * @param right    The evaluated runtime value of the right-hand operand.
+     * @return The resulting evaluated runtime object ({@link Integer}, {@link Boolean}, or {@link String}).
+     * @throws RuntimeException If an operator is executed on incompatible operand types or if division by zero occurs.
+     */
+    private Object evaluateBinary(Token operator, Object left, Object right) {
+        // String concatenation rule
+        if (operator.getType() == TokenType.PLUS && (left instanceof String || right instanceof String)) return String.valueOf(left) + String.valueOf(right);
+
+        // Equality comparison
+        if (operator.getType() == TokenType.EQUAL) {
+            return java.util.Objects.equals(left, right);
+        }
+
+        // Numeric evaluation rules
+        if (left instanceof Integer lInt && right instanceof Integer rInt) {
+            return switch (operator.getType()) {
+                case PLUS -> lInt + rInt;
+                case MINUS -> lInt - rInt;
+                case STAR -> lInt * rInt;
+                case SLASH -> {
+                    if (rInt == 0) throw new RuntimeException("Ligne " + operator.getLine() + " : Division par zéro.");
+
+                    yield lInt / rInt;
+                }
+
+                case GREATER -> lInt > rInt;
+                case LESS -> lInt < rInt;
+
+                default -> throw new RuntimeException("Ligne " + operator.getLine() + " : Opérateur binaire non supporté.");
+
+            };
+        }
+
+        throw new RuntimeException("Ligne " + operator.getLine() + " : Opérandes incompatibles pour l'opération '" + operator.getLexeme() + "'.");
+    }
+
+    /**
+     * Executes a list of statements within a new scoped environment.
+     * <p>
+     * <b>Preconditions:</b> {@code statements} and {@code environment} must not be {@code null}.<br>
+     * <b>Postconditions:</b> Restores the previous enclosing environment upon completion or exception.
+     * </p>
+     *
+     * @param statements  The {@link List} of {@link Stmt} nodes to execute inside the block.
+     * @param environment The local {@link Environment} scoped specifically for this block.
+     */
+    public void executeBlock(List<Stmt> statements, Environment environment) {
+        Environment previous = this.environment;
+
+        try {
+            this.environment = environment;
+            for (Stmt statement : statements) {
+                execute(statement);
+            }
+        } finally {
+            this.environment = previous;
+        }
+    }
+
 }

@@ -101,6 +101,11 @@ public class Parser {
      * @throws RuntimeException If the current token sequence does not match any recognized statement syntax.
      */
     private Stmt statement() {
+        // Blocs statement
+        if (match(TokenType.LBRACE)) {
+            return new BlockStmt(block());
+        }
+
         // Print statement ('print expression')
         if (match(TokenType.PRINT)) {
             Expr value = expression();
@@ -122,14 +127,89 @@ public class Parser {
     /**
      * Top-level entry point for parsing expressions.
      * <p>
-     * Currently delegates directly to primary expressions, but acts as the extension point
-     * for binary operator precedence climbing (e.g., addition, multiplication) in GEM-07.
+     * Delegates to {@link #equality()} to begin recursive descent expression evaluation
+     * at the lowest operator precedence level.
      * </p>
      *
-     * @return The parsed {@link Expr} node.
+     * @return The parsed {@link Expr} AST node.
      */
     private Expr expression() {
-        return primary();
+        return equality();
+    }
+
+    /**
+     * Parses equality comparison operations ({@code ==}).
+     * <p>
+     * <b>Grammar rule:</b> {@code equality -> comparison ( '==' comparison )*}
+     * </p>
+     *
+     * @return An {@link Expr} node representing an equality comparison subtree.
+     */
+    private Expr equality() {
+        Expr expr = comparison();
+
+        while (match(TokenType.EQUAL)) {
+            Token operator = previous();
+            Expr right = comparison();
+            expr = new BinaryExpr(expr, operator, right);
+        }
+
+        return expr;
+    }
+
+    /**
+     * Parses relational comparison operations ({@code >} and {@code <}).
+     * <p>
+     * <b>Grammar rule:</b> {@code comparison -> term ( ('>' | '<') term )*}
+     * </p>
+     *
+     * @return An {@link Expr} node representing a relational comparison subtree.
+     */
+    private Expr comparison() {
+        Expr expr = term();
+        while (match(TokenType.GREATER, TokenType.LESS)) {
+            Token operator = previous();
+            Expr right = term();
+            expr = new BinaryExpr(expr, operator, right);
+        }
+
+        return expr;
+    }
+
+    /**
+     * Parses addition ('+') and subtraction ('-') operations.
+     * <p>
+     * <b>Grammar rule:</b> {@code term -> factor ( ('+' | '-') factor )*}
+     * </p>
+     */
+    private Expr term() {
+        Expr expr = factor();
+
+        while (match(TokenType.PLUS, TokenType.MINUS)) {
+            Token operator = previous();
+            Expr right = factor();
+            expr = new BinaryExpr(expr, operator, right);
+        }
+
+        return expr;
+    }
+
+    /**
+     * Parses multiplication ('*') and division ('/') operations.
+     * <p>
+     * <b>Grammar rule:</b> {@code factor -> primary ( ('*' | '/') primary )*}
+     * </p>
+     */
+    private Expr factor() {
+        Expr expr = primary();
+
+        while (match(TokenType.STAR, TokenType.SLASH)) {
+            Token operator = previous();
+            Expr right = primary();
+            expr = new BinaryExpr(expr, operator, right);
+        }
+
+        return expr;
     }
 
     /**
@@ -148,6 +228,12 @@ public class Parser {
         // Variable identifier lookups in expressions.
         if (match(TokenType.IDENTIFIER)) return new VariableExpr(previous());
 
+        // Grouping expression
+        if (match(TokenType.LPAREN)) {
+            Expr expr = expression();
+            consume(TokenType.RPAREN, "Parenthèse fermante ')' attendue après l'expression.");
+            return expr;
+        }
         throw new RuntimeException("Ligne " + peek().getLine() + " : Expression attendue près de '" + peek().getLexeme() + "'");
     }
 
@@ -233,4 +319,15 @@ public class Parser {
 
         throw new RuntimeException("Ligne " + peek().getLine() + " : " + message);
     }
+
+    private List<Stmt> block() {
+        List<Stmt> statements = new ArrayList<>();
+        // Adding each parse instruction
+        while (!check(TokenType.RBRACE) && !isAtEnd()) statements.add(declaration());
+
+        consume(TokenType.RBRACE, "Accolade fermante '}' attendue après le bloc.");
+
+        return statements;
+    }
+
 }
