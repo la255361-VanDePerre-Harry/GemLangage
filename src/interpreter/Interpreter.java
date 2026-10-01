@@ -1,6 +1,8 @@
 package interpreter;
 
 import ast.*;
+import lexer.Token;
+import lexer.TokenType;
 
 import java.util.List;
 
@@ -88,6 +90,53 @@ public class Interpreter {
         // Variable identifier references
         if (expr instanceof VariableExpr variable) return environment.get(variable.getName());
 
+        // Evaluation of Binary Operations
+        if (expr instanceof BinaryExpr binary) {
+            Object left = evaluate(binary.getLeft());
+            Object right = evaluate(binary.getRight());
+
+            return evaluateBinary(binary.getOperator(), left, right);
+        }
+
         throw new RuntimeException("Expression non supportée à l'exécution : " + expr.getClass().getSimpleName());
     }
+
+    private Object parseLiteralValue(Object rawValue) {
+        if (rawValue instanceof  String str) {
+            try {
+                return Integer.parseInt(str);
+            } catch (NumberFormatException ignored) {
+                // not an integer, keep it string
+            }
+        }
+        return rawValue;
+    }
+
+    /**
+    * Executes binary mathematical and string concatenation operations.}
+    */
+    private Object evaluateBinary(Token operator, Object left, Object right) {
+        // String concatenation rule
+        if (operator.getType() == TokenType.PLUS && (left instanceof String || right instanceof String)) return String.valueOf(left) + String.valueOf(right);
+
+        // Numeric evaluation rules
+        if (left instanceof Integer lInt && right instanceof Integer rInt) {
+            return switch (operator.getType()) {
+                case PLUS -> lInt + rInt;
+                case MINUS -> lInt - rInt;
+                case STAR -> lInt * rInt;
+                case SLASH -> {
+                    if (rInt == 0) throw new RuntimeException("Ligne " + operator.getLine() + " : Division par zéro.");
+
+                    yield lInt / rInt;
+                }
+
+                default -> throw new RuntimeException("Ligne " + operator.getLine() + " : Opérateur binaire non supporté.");
+
+            };
+        }
+
+        throw new RuntimeException("Ligne " + operator.getLine() + " : Opérandes incompatibles pour l'opération '" + operator.getLexeme() + "'.");
+    }
+
 }
