@@ -1,8 +1,14 @@
-mut a : int = 5 + 3 * 2
-print a
+mut test1 : bool = 5 > 3
+print test1
 
-mut b : int = (5 + 3) * 2
-print b
+mut test2 : bool = 10 == 10
+print test2
 
-mut message : string = "Résultat : " + a
-print message
+mut test3 : bool = "gem" == "gem"
+print test3
+
+mut test4 : bool = (5 + 5) == 10
+print test4
+
+mut test5 : bool = 3 < 1
+print test5

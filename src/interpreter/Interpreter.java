@@ -161,6 +161,9 @@ public class Interpreter {
                     yield lInt / rInt;
                 }
 
+                case GREATER -> lInt > rInt;
+                case LESS -> lInt < rInt;
+
                 default -> throw new RuntimeException("Ligne " + operator.getLine() + " : Opérateur binaire non supporté.");
 
             };

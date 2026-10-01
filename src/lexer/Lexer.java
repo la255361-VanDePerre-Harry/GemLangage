@@ -108,9 +108,25 @@ public class Lexer {
             case '/':
                 addToken(TokenType.SLASH);
                 break;
-            case '=':
-                addToken(match('=') ? TokenType.EQUAL : TokenType.ASSIGN);
+
+            case '>':
+                addToken(TokenType.GREATER);
                 break;
+            case '<':
+                addToken(TokenType.LESS);
+                break;
+
+            // Prise en charge de '=' vs '=='
+            case '=':
+                if (match('=')) {
+                    // if next caract is also an equal
+                    addToken(TokenType.EQUAL);
+                } else {
+                    // else that's an assign
+                    addToken(TokenType.ASSIGN);
+                }
+                break;
+
 
             case ' ':
             case '\r':
