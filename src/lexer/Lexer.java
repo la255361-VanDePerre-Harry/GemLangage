@@ -2,6 +2,8 @@ package lexer;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 public class Lexer {
     private String input;
@@ -9,6 +11,22 @@ public class Lexer {
     private int start;
     private int current;
     private int line = 1;
+
+    private static final Map<String, TokenType> keywords;
+    static {
+        keywords = new HashMap<>();
+        keywords.put("const", TokenType.CONST);
+        keywords.put("mut", TokenType.MUT);
+        keywords.put("if", TokenType.IF);
+        keywords.put("else", TokenType.ELSE);
+        keywords.put("while", TokenType.WHILE);
+        keywords.put("print", TokenType.PRINT);
+        keywords.put("int", TokenType.TYPE_INT);
+        keywords.put("string", TokenType.TYPE_STRING);
+        keywords.put("bool", TokenType.TYPE_BOOL);
+        keywords.put("true", TokenType.BOOLEAN);
+        keywords.put("false", TokenType.BOOLEAN);
+    }
 
 
     public Lexer(String input) {
@@ -27,7 +45,8 @@ public class Lexer {
     }
 
     private void scanToken() {
-        switch (advance()) {
+        char caract = advance();
+        switch (caract) {
             case '(':
                 addToken(TokenType.LPAREN);
                 break;
@@ -70,7 +89,11 @@ public class Lexer {
 
 
             default:
-                System.err.println("Ligne " + line + " : Caractère inattendu '");
+                if (Character.isLetter(caract) || caract == '_') {
+                    identifier();
+                } else {
+                    System.err.println("Ligne " + line + " : Caractère inattendu '" + caract + "'");
+                }
                 break;
 
         }
@@ -108,4 +131,24 @@ public class Lexer {
         tokens.add(token);
     }
 
+    private char peek() {
+        if (isAtEnd()) return '\0';
+
+        return this.input.charAt(this.current);
+    }
+
+    private void identifier() {
+        while (Character.isLetterOrDigit(peek()) || peek() == '_') {
+            advance();
+        }
+        String text = input.substring(start, current);
+
+        TokenType type = keywords.get(text);
+
+        if (type == null) {
+            type = TokenType.IDENTIFIER;
+        }
+
+        addToken(type);
+    }
 }
