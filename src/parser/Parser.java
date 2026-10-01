@@ -321,7 +321,7 @@ public class Parser {
     }
 
     private List<Stmt> block() {
-        List<Stmt> statements = new ArrayList<>();.
+        List<Stmt> statements = new ArrayList<>();
         while (!check(TokenType.RBRACE) && !isAtEnd()) statements.add(declaration());
 
         consume(TokenType.RBRACE, "Accolade fermante '}' attendue après le bloc.");
