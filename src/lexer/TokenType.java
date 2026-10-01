@@ -1,7 +1,19 @@
 package lexer;
 
+/**
+ * Represents the complete set of token categories recognized by the GEM language Lexer.
+ * <p>
+ * The enumeration constant defines a specific lexical unit used by the Parser
+ * during syntactic analysis and Abstract Syntax Tree (AST) construction.
+ * </p>
+ *
+ * @author Van De Perre Harry
+ * @version 1.0
+ */
 public enum TokenType {
-    // KeyWords
+    // =========================================================================
+    // Keywords
+    // =========================================================================
     CONST,
     MUT,
     IF,
@@ -9,18 +21,24 @@ public enum TokenType {
     WHILE,
     PRINT,
 
-    // Data Types
+    // =========================================================================
+    // Native Data Types
+    // =========================================================================
     TYPE_INT,
     TYPE_STRING,
     TYPE_BOOL,
 
+    // =========================================================================
     // Literals and Identifiers
+    // =========================================================================
     NUMBER,
     STRING,
     BOOLEAN,
     IDENTIFIER,
 
-    // Arithmetic and Logical Operators
+    // =========================================================================
+    // Arithmetic, Logical, and Assignment Operators
+    // =========================================================================
     ASSIGN,
     PLUS,
     MINUS,
@@ -30,13 +48,17 @@ public enum TokenType {
     GREATER,
     EQUAL,
 
-    // Symbols and Separators
+    // =========================================================================
+    // Symbols and Delimiters
+    // =========================================================================
     COLON,
     LPAREN,
     RPAREN,
     LBRACE,
     RBRACE,
 
-    // FLUX CONTROL
+    // =========================================================================
+    // Flux Control
+    // =========================================================================
     EOF
 }
