@@ -121,15 +121,46 @@ public class Parser {
 
     /**
      * Top-level entry point for parsing expressions.
-     * <p>
-     * Currently delegates directly to primary expressions, but acts as the extension point
-     * for binary operator precedence climbing (e.g., addition, multiplication) in GEM-07.
-     * </p>
-     *
-     * @return The parsed {@link Expr} node.
+     * Delegates to term() to handle addition and subtraction (lowest precedence arithmetic).
      */
     private Expr expression() {
-        return primary();
+        return term();
+    }
+
+    /**
+     * Parses addition ('+') and subtraction ('-') operations.
+     * <p>
+     * <b>Grammar rule:</b> {@code term -> factor ( ('+' | '-') factor )*}
+     * </p>
+     */
+    private Expr term() {
+        Expr expr = factor();
+
+        while (match(TokenType.PLUS, TokenType.MINUS)) {
+            Token operator = previous();
+            Expr right = factor();
+            expr = new BinaryExpr(expr, operator, right);
+        }
+
+        return expr;
+    }
+
+    /**
+     * Parses multiplication ('*') and division ('/') operations.
+     * <p>
+     * <b>Grammar rule:</b> {@code factor -> primary ( ('*' | '/') primary )*}
+     * </p>
+     */
+    private Expr factor() {
+        Expr expr = primary();
+
+        while (match(TokenType.STAR, TokenType.SLASH)) {
+            Token operator = previous();
+            Expr right = primary();
+            expr = new BinaryExpr(expr, operator, right);
+        }
+
+        return expr;
     }
 
     /**
@@ -148,6 +179,11 @@ public class Parser {
         // Variable identifier lookups in expressions.
         if (match(TokenType.IDENTIFIER)) return new VariableExpr(previous());
 
+        // Grouping expression
+        if (match(TokenType.LPAREN)) {
+            Expr expr = expression();
+            consume(TokenType.RPAREN, "Parenthèse fermante ')' attendue après l'expression.");
+        }
         throw new RuntimeException("Ligne " + peek().getLine() + " : Expression attendue près de '" + peek().getLexeme() + "'");
     }
 
