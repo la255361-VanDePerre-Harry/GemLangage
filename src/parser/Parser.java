@@ -121,10 +121,54 @@ public class Parser {
 
     /**
      * Top-level entry point for parsing expressions.
-     * Delegates to term() to handle addition and subtraction (lowest precedence arithmetic).
+     * <p>
+     * Delegates to {@link #equality()} to begin recursive descent expression evaluation
+     * at the lowest operator precedence level.
+     * </p>
+     *
+     * @return The parsed {@link Expr} AST node.
      */
     private Expr expression() {
-        return term();
+        return equality();
+    }
+
+    /**
+     * Parses equality comparison operations ({@code ==}).
+     * <p>
+     * <b>Grammar rule:</b> {@code equality -> comparison ( '==' comparison )*}
+     * </p>
+     *
+     * @return An {@link Expr} node representing an equality comparison subtree.
+     */
+    private Expr equality() {
+        Expr expr = comparison();
+
+        while (match(TokenType.EQUAL)) {
+            Token operator = previous();
+            Expr right = comparison();
+            expr = new BinaryExpr(expr, operator, right);
+        }
+
+        return expr;
+    }
+
+    /**
+     * Parses relational comparison operations ({@code >} and {@code <}).
+     * <p>
+     * <b>Grammar rule:</b> {@code comparison -> term ( ('>' | '<') term )*}
+     * </p>
+     *
+     * @return An {@link Expr} node representing a relational comparison subtree.
+     */
+    private Expr comparison() {
+        Expr expr = term();
+        while (match(TokenType.GREATER, TokenType.LESS)) {
+            Token operator = previous();
+            Expr right = term();
+            expr = new BinaryExpr(expr, operator, right);
+        }
+
+        return expr;
     }
 
     /**
