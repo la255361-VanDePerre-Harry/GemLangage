@@ -85,7 +85,7 @@ public class Interpreter {
      */
     private Object evaluate(Expr expr) {
         // Literal values
-        if (expr instanceof LiteralExpr literal) return literal.getValue();
+        if (expr instanceof LiteralExpr literal) return parseLiteralValue(literal.getValue());
 
         // Variable identifier references
         if (expr instanceof VariableExpr variable) return environment.get(variable.getName());

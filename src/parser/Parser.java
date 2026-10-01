@@ -183,6 +183,7 @@ public class Parser {
         if (match(TokenType.LPAREN)) {
             Expr expr = expression();
             consume(TokenType.RPAREN, "Parenthèse fermante ')' attendue après l'expression.");
+            return expr;
         }
         throw new RuntimeException("Ligne " + peek().getLine() + " : Expression attendue près de '" + peek().getLexeme() + "'");
     }
