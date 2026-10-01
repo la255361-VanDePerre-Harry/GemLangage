@@ -1,4 +1,4 @@
-package abs;
+package ast;
 
 import lexer.Token;
 

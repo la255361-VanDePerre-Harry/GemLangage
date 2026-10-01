@@ -1,4 +1,4 @@
-package abs;
+package ast;
 
 public class LiteralExpr extends Expr{
     private final Object value;
