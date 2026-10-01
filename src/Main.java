@@ -1,5 +1,7 @@
+import ast.*;
 import lexer.Lexer;
 import lexer.Token;
+import parser.Parser;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -11,16 +13,27 @@ public class Main {
         try {
             String codeGEM = Files.readString(Path.of("test.gem"));
 
-
-            // Lecture du gem
             Lexer lexer = new Lexer(codeGEM);
             List<Token> tokens = lexer.scanTokens();
 
-            for (Token token : tokens) {
-                System.out.println(token);
+            Parser parser = new Parser(tokens);
+            List<Stmt> ast = parser.parse();
+
+            System.out.println("=== AST Généré avec succès ! ===");
+            for (Stmt stmt : ast) {
+                if (stmt instanceof VarDeclStmt decl) {
+                    System.out.println("• Déclaration " + (decl.isConstant() ? "[CONST]" : "[MUT]")
+                            + " -> Name: " + decl.getName().getLexeme()
+                            + " | Type: " + decl.getTypeToken().getLexeme());
+                } else if (stmt instanceof PrintStmt print) {
+                    System.out.println("• Instruction PRINT");
+                }
             }
+
         } catch (IOException e) {
-            System.err.println("Impossible de lire le fichier .gem : " + e.getMessage());
+            System.err.println("Erreur de lecture du fichier : " + e.getMessage());
+        } catch (RuntimeException e) {
+            System.err.println("Erreur de compilation : " + e.getMessage());
         }
     }
 }
