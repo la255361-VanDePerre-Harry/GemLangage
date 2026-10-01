@@ -101,6 +101,11 @@ public class Parser {
      * @throws RuntimeException If the current token sequence does not match any recognized statement syntax.
      */
     private Stmt statement() {
+        // Blocs statement
+        if (match(TokenType.LBRACE)) {
+            new BlockStmt(block());
+        }
+
         // Print statement ('print expression')
         if (match(TokenType.PRINT)) {
             Expr value = expression();
@@ -314,4 +319,14 @@ public class Parser {
 
         throw new RuntimeException("Ligne " + peek().getLine() + " : " + message);
     }
+
+    private List<Stmt> block() {
+        List<Stmt> statements = new ArrayList<>();.
+        while (!check(TokenType.RBRACE) && !isAtEnd()) statements.add(declaration());
+
+        consume(TokenType.RBRACE, "Accolade fermante '}' attendue après le bloc.");
+
+        return statements;
+    }
+
 }
