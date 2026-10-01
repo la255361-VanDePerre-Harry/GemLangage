@@ -1,0 +1,3 @@
+const MAX: int = 100
+mut message: string = "Hello GEM"
+print message

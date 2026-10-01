@@ -86,10 +86,15 @@ public class Lexer {
             case '\n':
                 line++;
                 break;
+            case '"':
+                string();
+                break;
 
 
             default:
-                if (Character.isLetter(caract) || caract == '_') {
+                if (Character.isDigit(caract)) {
+                    number();
+                } else if (Character.isLetter(caract) || caract == '_') {
                     identifier();
                 } else {
                     System.err.println("Ligne " + line + " : Caractère inattendu '" + caract + "'");
@@ -150,5 +155,28 @@ public class Lexer {
         }
 
         addToken(type);
+    }
+
+    private void number() {
+        while (Character.isDigit(peek())) {
+            advance();
+        }
+
+        addToken(TokenType.NUMBER);
+    }
+
+    private void string() {
+        while (peek() != '"' && !isAtEnd()) {
+            if (peek() == '\n') line++;
+            advance();
+        }
+
+        if (isAtEnd()) {
+            System.err.println("Ligne " + line + " : Chaîne non terminée.");
+            return;
+        }
+
+        advance();
+        addToken(TokenType.STRING);
     }
 }
