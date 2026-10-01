@@ -1,5 +1,4 @@
 const MAX : int = 100
-MAX = 200
 mut message : string = "Hello World"
 print message
 print MAX
