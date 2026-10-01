@@ -177,6 +177,9 @@ public class Lexer {
         }
 
         advance();
-        addToken(TokenType.STRING);
+
+        String value = this.input.substring(start + 1, current - 1);
+
+        addToken(TokenType.STRING, value);
     }
 }
