@@ -13,7 +13,7 @@ import java.util.HashMap;
  * identifiers, numeric literals, enclosed string literals, and language operators.
  * </p>
  *
- * @author GEM Compiler Team
+ * @author Van De Perre Harry
  * @version 1.0
  */
 public class Lexer {

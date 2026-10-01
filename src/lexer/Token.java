@@ -6,7 +6,7 @@ package lexer;
  * textual substring (lexeme), and its corresponding line number in the source file for error reporting.
  * </p>
  *
- * @author GEM Compiler Team
+ * @author Van De Perre Harry
  * @version 1.0
  */
 public class Token {
