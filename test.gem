@@ -1,4 +1,8 @@
-const MAX : int = 100
-mut message : string = "Hello World"
+mut message : string = "Hello"
 print message
-print MAX
+
+message = "World"
+print message
+
+const MAX : int = 100
+MAX = 200
