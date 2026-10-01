@@ -1,4 +1,4 @@
 package abs;
 
-public class Expr {
+public abstract class Expr {
 }
