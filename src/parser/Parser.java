@@ -103,7 +103,7 @@ public class Parser {
     private Stmt statement() {
         // Blocs statement
         if (match(TokenType.LBRACE)) {
-            new BlockStmt(block());
+            return new BlockStmt(block());
         }
 
         // Print statement ('print expression')
@@ -322,6 +322,7 @@ public class Parser {
 
     private List<Stmt> block() {
         List<Stmt> statements = new ArrayList<>();
+        // Adding each parse instruction
         while (!check(TokenType.RBRACE) && !isAtEnd()) statements.add(declaration());
 
         consume(TokenType.RBRACE, "Accolade fermante '}' attendue après le bloc.");

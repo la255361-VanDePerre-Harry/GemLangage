@@ -1,14 +1,12 @@
-mut test1 : bool = 5 > 3
-print test1
+mut x : int = 10
+mut y : int = 100
 
-mut test2 : bool = 10 == 10
-print test2
+{
+    mut x : int = 20
+    print x
 
-mut test3 : bool = "gem" == "gem"
-print test3
+    y = 200
+}
 
-mut test4 : bool = (5 + 5) == 10
-print test4
-
-mut test5 : bool = 3 < 1
-print test5
+print x
+print y
