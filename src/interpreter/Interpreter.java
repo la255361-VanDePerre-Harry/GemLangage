@@ -47,6 +47,17 @@ public class Interpreter {
      */
     private void execute(Stmt stmt) {
         switch (stmt) {
+            // IF Statement
+            case IfStmt ifStmt -> {
+                Object conditionValue = evaluate(ifStmt.getCondition());
+
+                if (isTruthy(conditionValue)) execute(ifStmt.getThenBranch());
+
+                else if (ifStmt.getElseBranch() != null) execute(ifStmt.getElseBranch());
+
+
+            }
+
             // Block Statement ({ ... })
             case BlockStmt blockStmt -> executeBlock(blockStmt.getStatements(), new Environment(this.environment));
             
@@ -196,6 +207,19 @@ public class Interpreter {
         } finally {
             this.environment = previous;
         }
+    }
+
+    /**
+     * Asserts that a runtime value evaluated as a condition is strictly a {@link Boolean}.
+     *
+     * @param object The evaluated runtime value to validate.
+     * @return The primitive {@code boolean} value.
+     * @throws RuntimeException If the condition value is not a {@link Boolean}.
+     */
+    private boolean isTruthy(Object object) {
+        if (object instanceof Boolean b) return  b;
+
+        throw new RuntimeException("La condition d'une instruction 'if' doit être de type booléen.");
     }
 
 }

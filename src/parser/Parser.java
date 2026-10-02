@@ -101,10 +101,11 @@ public class Parser {
      * @throws RuntimeException If the current token sequence does not match any recognized statement syntax.
      */
     private Stmt statement() {
+        // Conditionnal statement
+        if (match(TokenType.IF)) return ifStatement();
+
         // Blocs statement
-        if (match(TokenType.LBRACE)) {
-            return new BlockStmt(block());
-        }
+        if (match(TokenType.LBRACE)) return new BlockStmt(block());
 
         // Print statement ('print expression')
         if (match(TokenType.PRINT)) {
@@ -334,4 +335,22 @@ public class Parser {
         return statements;
     }
 
+    /**
+     * Parses a conditional 'if' statement with an optional 'else' branch.
+     * <p>
+     * <b>Grammar rule:</b> {@code ifStmt -> 'if' expression statement ( 'else' statement )?}
+     * </p>
+     *
+     * @return An {@link IfStmt} AST node encapsulating condition and branches.
+     */
+    private Stmt ifStatement() {
+        Expr condition = expression();
+
+        Stmt thenBranch = statement();
+
+        Stmt elseBranch = null;
+        if (match(TokenType.ELSE)) elseBranch = statement();
+
+        return new IfStmt(condition, thenBranch, elseBranch);
+    }
 }

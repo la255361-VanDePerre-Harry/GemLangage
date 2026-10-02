@@ -1,12 +1,11 @@
-mut x : int = 10
-mut y : int = 100
+mut age : int = 20
 
-{
-    mut x : int = 20
-    print x
-
-    y = 200
+if age > 18 {
+    print "Majeur"
+} else {
+    print "Mineur"
 }
 
-print x
-print y
+if age == 20 {
+    print "A exactement 20 ans"
+}
