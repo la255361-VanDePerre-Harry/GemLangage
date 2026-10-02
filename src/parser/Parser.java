@@ -320,6 +320,10 @@ public class Parser {
         throw new RuntimeException("Ligne " + peek().getLine() + " : " + message);
     }
 
+    /**
+     * Method to parse block of code.
+     * @return List<Stmt> : list of statement into the block
+     */
     private List<Stmt> block() {
         List<Stmt> statements = new ArrayList<>();
         // Adding each parse instruction
