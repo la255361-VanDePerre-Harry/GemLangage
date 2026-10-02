@@ -101,28 +101,39 @@ public class Parser {
      * @throws RuntimeException If the current token sequence does not match any recognized statement syntax.
      */
     private Stmt statement() {
-        // Conditionnal statement
-        if (match(TokenType.IF)) return ifStatement();
+        return switch (peek().getType()) {
+            case WHILE -> {
+                advance();
+                yield whileStatement();
+            }
 
-        // Blocs statement
-        if (match(TokenType.LBRACE)) return new BlockStmt(block());
+            case IF -> {
+                advance();
+                yield ifStatement();
+            }
 
-        // Print statement ('print expression')
-        if (match(TokenType.PRINT)) {
-            Expr value = expression();
-            return new PrintStmt(value);
-        }
+            case LBRACE -> {
+                advance();
+                yield new BlockStmt(block());
+            }
 
-        // Variable reassignment ('identifier = expression')
-        // Uses lookahead via check() to distinguish reassignment from other identifier references.
-        if (check(TokenType.IDENTIFIER)) {
-            Token name = advance();
-            consume(TokenType.ASSIGN, "'=' attendu après le nom de la variable.");
-            Expr value = expression();
-            return new AssignStmt(name, value);
-        }
+            case PRINT -> {
+                advance();
+                Expr value = expression();
+                yield new PrintStmt(value);
+            }
 
-        throw new RuntimeException("Ligne " + peek().getLine() + " : Instruction non reconnue '" + peek().getLexeme() + "'");
+            case IDENTIFIER -> {
+                Token name = advance();
+                consume(TokenType.ASSIGN, "'=' attendu après le nom de la variable.");
+                Expr value = expression();
+                yield new AssignStmt(name, value);
+            }
+
+            default ->
+                    throw new RuntimeException("Ligne " + peek().getLine() + " : Instruction non reconnue '" + peek().getLexeme() + "'");
+        };
+
     }
 
     /**
@@ -352,5 +363,21 @@ public class Parser {
         if (match(TokenType.ELSE)) elseBranch = statement();
 
         return new IfStmt(condition, thenBranch, elseBranch);
+    }
+
+    /**
+     * Parses an iterative 'while' loop statement.
+     * <p>
+     * <b>Grammar rule:</b> {@code whileStmt -> 'while' expression statement}
+     * </p>
+     *
+     * @return A {@link WhileStmt} AST node encapsulating the condition expression and body statement.
+     */
+    private Stmt whileStatement() {
+        Expr condition = expression();
+
+        Stmt body = statement();
+
+        return new WhileStmt(condition, body);
     }
 }
