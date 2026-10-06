@@ -1,4 +1,5 @@
 package lexer;
+
 /**
  * Represents an immutable lexical token produced by the {@link Lexer}.
  * <p>
@@ -12,8 +13,10 @@ package lexer;
 public class Token {
     /** The category/type of this token. */
     private final TokenType type;
+
     /** The exact string representation from the source code. */
     private final String lexeme;
+
     /** The line number where this token appeared in the source file (1-indexed). */
     private final int line;
 
@@ -30,20 +33,40 @@ public class Token {
         this.line = line;
     }
 
+    /**
+     * Retrieves the category type of this token.
+     *
+     * @return The {@link TokenType} classification.
+     */
     public TokenType getType() {
         return type;
     }
 
+    /**
+     * Retrieves the exact textual lexeme substring from the source code.
+     *
+     * @return The literal lexeme {@link String}.
+     */
     public String getLexeme() {
         return lexeme;
     }
 
+    /**
+     * Retrieves the source file line number where this token was scanned.
+     *
+     * @return The 1-indexed line integer position.
+     */
     public int getLine() {
         return line;
     }
 
+    /**
+     * Formats the token into a human-readable diagnostic string for debugging.
+     *
+     * @return A formatted {@link String} containing line number, token type, and lexeme.
+     */
     @Override
     public String toString() {
-        return String.format("Ligne %d | Token(%s, '%s')", line, type, lexeme);
+        return String.format("Line %d | Token(%s, '%s')", line, type, lexeme);
     }
 }

@@ -5,7 +5,6 @@ import lexer.Token;
 import lexer.TokenType;
 
 import java.util.List;
-import java.util.function.UnaryOperator;
 
 /**
  * Executes GEM Abstract Syntax Tree (AST) statement nodes and evaluates expressions.
@@ -19,7 +18,7 @@ import java.util.function.UnaryOperator;
  * @version 1.0
  */
 public class Interpreter {
-    /** Global runtime memory environment storing variable and constant bindings. */
+    /** Global runtime memory environment storing variable, constant, and function bindings. */
     private Environment environment = new Environment(null);
 
     /**
@@ -40,7 +39,8 @@ public class Interpreter {
     /**
      * Executes a single statement node using pattern matching on the statement type.
      * <p>
-     * Handles variable declarations, print output operations, and variable reassignments.
+     * Handles variable declarations, function definitions, control flow, output print operations,
+     * variable reassignments, and standalone expression statements.
      * </p>
      *
      * @param stmt The {@link Stmt} node to execute.
@@ -48,28 +48,46 @@ public class Interpreter {
      */
     private void execute(Stmt stmt) {
         switch (stmt) {
-            // WHILE Statement
+            // Expression Statement (e.g., standalone function call 'greet(...)')
+            case ExpressionStmt exprStmt -> evaluate(exprStmt.getExpression());
+
+            // Function Declaration Statement
+            case FunctionStmt function -> {
+                GemFunction gemFunction = new GemFunction(function);
+                environment.define(function.getName().getLexeme(), gemFunction);
+            }
+
+            // Return Statement
+            case ReturnStmt returnStmt -> {
+                Object value = null;
+                if (returnStmt.getValue() != null) {
+                    value = evaluate(returnStmt.getValue());
+                }
+                throw new ReturnException(value);
+            }
+
+            // Iterative While Loop Statement
             case WhileStmt whileStmt -> {
                 while (isTruthy(evaluate(whileStmt.getCondition()))) {
                     execute(whileStmt.getBody());
                 }
             }
 
-            // IF Statement
+            // Conditional If/Else Branching Statement
             case IfStmt ifStmt -> {
                 Object conditionValue = evaluate(ifStmt.getCondition());
 
-                if (isTruthy(conditionValue)) execute(ifStmt.getThenBranch());
-
-                else if (ifStmt.getElseBranch() != null) execute(ifStmt.getElseBranch());
-
-
+                if (isTruthy(conditionValue)) {
+                    execute(ifStmt.getThenBranch());
+                } else if (ifStmt.getElseBranch() != null) {
+                    execute(ifStmt.getElseBranch());
+                }
             }
 
-            // Block Statement ({ ... })
+            // Block Scope Statement ({ ... })
             case BlockStmt blockStmt -> executeBlock(blockStmt.getStatements(), new Environment(this.environment));
-            
-            // Variable / Constant Declaration
+
+            // Variable / Constant Declaration Statement
             case VarDeclStmt decl -> {
                 Object value = evaluate(decl.getInitializer());
                 String name = decl.getName().getLexeme();
@@ -77,20 +95,20 @@ public class Interpreter {
                 environment.define(name, value, decl.isConstant());
             }
 
-            // Output Print Statement
+            // Standard Output Print Statement
             case PrintStmt printStmt -> {
                 Object value = evaluate(printStmt.getExpression());
                 System.out.println(value);
             }
 
-            // Variable Reassignment
+            // Variable Reassignment Statement
             case AssignStmt assign -> {
                 Object value = evaluate(assign.getValue());
                 environment.assign(assign.getName(), value);
             }
 
             // Unsupported or invalid AST statement node
-            case null, default -> throw new RuntimeException("Type d'instruction non supporté à l'exécution.");
+            case null, default -> throw new RuntimeException("Unsupported AST statement node encountered during execution.");
         }
     }
 
@@ -117,14 +135,14 @@ public class Interpreter {
 
                 if (unary.getOperator().getType() == TokenType.MINUS) yield -(int) right;
 
-                throw new RuntimeException("Ligne " + unary.getOperator().getLine() +
-                        " : Opérateur unaire non supporté '" + unary.getOperator().getLexeme() + "'");
+                throw new RuntimeException("Line " + unary.getOperator().getLine() +
+                        " : Unsupported unary operator '" + unary.getOperator().getLexeme() + "'");
             }
 
             case LogicalExpr logical -> {
                 Object left = evaluate(logical.getLeft());
 
-                // Evaluation en court-circuit (Short-circuit evaluation)
+                // Short-circuit evaluation logic
                 if (logical.getOperator().getType() == TokenType.OR_OR) {
                     if (isTruthy(left)) yield true;
                 } else {
@@ -140,7 +158,29 @@ public class Interpreter {
                 yield evaluateBinary(binary.getOperator(), left, right);
             }
 
-            default -> throw new RuntimeException("Expression non supportée à l'exécution : " + expr.getClass().getSimpleName());
+            case CallExpr call -> {
+                Object callee = environment.get(call.getCallee());
+
+                if (!(callee instanceof GemFunction function)) {
+                    throw new RuntimeException("Line " + call.getCallee().getLine() +
+                            " : Identifier '" + call.getCallee().getLexeme() + "' is not a callable function.");
+                }
+
+                List<Object> arguments = new java.util.ArrayList<>();
+                for (Expr argument : call.getArguments()) {
+                    arguments.add(evaluate(argument));
+                }
+
+                if (arguments.size() != function.arity()) {
+                    throw new RuntimeException("Line " + call.getCallee().getLine() +
+                            " : Function '" + call.getCallee().getLexeme() + "' expects " +
+                            function.arity() + " argument(s) but received " + arguments.size() + ".");
+                }
+
+                yield function.call(this, arguments);
+            }
+
+            default -> throw new RuntimeException("Unsupported AST expression node encountered during evaluation: " + expr.getClass().getSimpleName());
         };
     }
 
@@ -155,7 +195,7 @@ public class Interpreter {
      * @return The parsed runtime object ({@link Boolean}, {@link Integer}, or {@link String}).
      */
     private Object parseLiteralValue(Object rawValue) {
-        if (rawValue instanceof  String str) {
+        if (rawValue instanceof String str) {
 
             // Parse boolean literals
             if (str.equals("true")) return Boolean.TRUE;
@@ -165,7 +205,7 @@ public class Interpreter {
             try {
                 return Integer.parseInt(str);
             } catch (NumberFormatException ignored) {
-                // not an integer, keep it string
+                // Not an integer numeric string, preserve original raw string
             }
         }
         return rawValue;
@@ -185,22 +225,25 @@ public class Interpreter {
      */
     private Object evaluateBinary(Token operator, Object left, Object right) {
         // String concatenation rule
-        if (operator.getType() == TokenType.PLUS && (left instanceof String || right instanceof String)) return String.valueOf(left) + String.valueOf(right);
+        if (operator.getType() == TokenType.PLUS && (left instanceof String || right instanceof String)) {
+            return String.valueOf(left) + String.valueOf(right);
+        }
 
-        // Equality comparison
+        // Equality comparison rule
         if (operator.getType() == TokenType.EQUAL) {
             return java.util.Objects.equals(left, right);
         }
 
-        // Numeric evaluation rules
+        // Numeric arithmetic and relational evaluation rules
         if (left instanceof Integer lInt && right instanceof Integer rInt) {
             return switch (operator.getType()) {
                 case PLUS -> lInt + rInt;
                 case MINUS -> lInt - rInt;
                 case STAR -> lInt * rInt;
                 case SLASH -> {
-                    if (rInt == 0) throw new RuntimeException("Ligne " + operator.getLine() + " : Division par zéro.");
-
+                    if (rInt == 0) {
+                        throw new RuntimeException("Line " + operator.getLine() + " : Division by zero.");
+                    }
                     yield lInt / rInt;
                 }
 
@@ -209,12 +252,11 @@ public class Interpreter {
                 case LESS -> lInt < rInt;
                 case LESS_EQUAL -> lInt <= rInt;
 
-                default -> throw new RuntimeException("Ligne " + operator.getLine() + " : Opérateur binaire non supporté.");
-
+                default -> throw new RuntimeException("Line " + operator.getLine() + " : Unsupported binary operator.");
             };
         }
 
-        throw new RuntimeException("Ligne " + operator.getLine() + " : Opérandes incompatibles pour l'opération '" + operator.getLexeme() + "'.");
+        throw new RuntimeException("Line " + operator.getLine() + " : Incompatible operand types for binary operation '" + operator.getLexeme() + "'.");
     }
 
     /**
@@ -248,9 +290,24 @@ public class Interpreter {
      * @throws RuntimeException If the condition value is not a {@link Boolean}.
      */
     private boolean isTruthy(Object object) {
-        if (object instanceof Boolean b) return  b;
+        if (object instanceof Boolean b) return b;
 
-        throw new RuntimeException("La condition d'une instruction 'if' doit être de type booléen.");
+        throw new RuntimeException("The condition expression of an 'if' or 'while' statement must evaluate to a boolean value.");
     }
 
+    /**
+     * Resolves and returns the root global runtime environment.
+     * <p>
+     * Traverses up the scope hierarchy chain until reaching an environment without an enclosing parent.
+     * </p>
+     *
+     * @return The root global {@link Environment} instance.
+     */
+    public Environment getGlobals() {
+        Environment current = this.environment;
+        while (current.getParent() != null) {
+            current = current.getParent();
+        }
+        return current;
+    }
 }

@@ -19,17 +19,22 @@ import java.util.HashMap;
 public class Lexer {
     /** The raw source code input string to be scanned. */
     private String input;
+
     /** The accumulated list of scanned tokens. */
     private List<Token> tokens;
+
     /** The character offset pointing to the start of the token currently being scanned. */
     private int start;
+
     /** The character offset pointing to the character currently being inspected. */
     private int current;
+
     /** The current line number in the source code (1-indexed), tracked for error reporting. */
     private int line = 1;
 
     /** Static map associating language keyword strings with their corresponding {@link TokenType}. */
     private static final Map<String, TokenType> keywords;
+
     static {
         keywords = new HashMap<>();
         keywords.put("const", TokenType.CONST);
@@ -44,9 +49,15 @@ public class Lexer {
         keywords.put("true", TokenType.BOOLEAN);
         keywords.put("false", TokenType.BOOLEAN);
         keywords.put("for", TokenType.FOR);
+        keywords.put("fn", TokenType.FN);
+        keywords.put("return", TokenType.RETURN);
     }
 
-
+    /**
+     * Constructs a new {@code Lexer} instance initialized with source code input.
+     *
+     * @param input The raw GEM source code string to be tokenized.
+     */
     public Lexer(String input) {
         this.input = input;
         this.tokens = new ArrayList<>();
@@ -62,7 +73,7 @@ public class Lexer {
      * @return A {@link List} of scanned {@link Token} instances.
      */
     public List<Token> scanTokens() {
-        while(!isAtEnd()) {
+        while (!isAtEnd()) {
             start = current;
             scanToken();
         }
@@ -109,7 +120,7 @@ public class Lexer {
 
             case '/':
                 if (match('/')) {
-                    // C'est un commentaire // : on consomme jusqu'à la fin de la ligne
+                    // Single-line comment: consume characters until end of line
                     while (peek() != '\n' && !isAtEnd()) {
                         advance();
                     }
@@ -125,54 +136,55 @@ public class Lexer {
                 addToken(match('=') ? TokenType.LESS_EQUAL : TokenType.LESS);
                 break;
 
-
-
             case ';':
                 addToken(TokenType.SEMICOLON);
                 break;
 
-            // Prise en charge de '=' vs '=='
             case '=':
                 if (match('=')) {
-                    // if next caract is also an equal
                     addToken(TokenType.EQUAL);
                 } else {
-                    // else that's an assign
                     addToken(TokenType.ASSIGN);
                 }
                 break;
 
             case '&':
-                if (match('&')) addToken(TokenType.AND_AND);
-
-                else System.err.println("Ligne " + line + " : Caractère inattendu '&'. '&&' attendu.");
-
+                if (match('&')) {
+                    addToken(TokenType.AND_AND);
+                } else {
+                    System.err.println("Line " + line + " : Unexpected character '&'. Expected '&&'.");
+                }
                 break;
 
             case '|':
-                if (match('|')) addToken(TokenType.OR_OR);
-
-                else System.err.println("Ligne " + line + " : Caractère inattendu '|'. '||' attendu.");
-
+                if (match('|')) {
+                    addToken(TokenType.OR_OR);
+                } else {
+                    System.err.println("Line " + line + " : Unexpected character '|'. Expected '||'.");
+                }
                 break;
 
             case '!':
                 addToken(TokenType.BANG);
                 break;
 
+            case ',':
+                addToken(TokenType.COMMA);
+                break;
 
             case ' ':
             case '\r':
             case '\t':
+                // Ignore whitespace characters
                 break;
 
             case '\n':
                 line++;
                 break;
+
             case '"':
                 string();
                 break;
-
 
             default:
                 if (Character.isDigit(caract)) {
@@ -180,13 +192,11 @@ public class Lexer {
                 } else if (Character.isLetter(caract) || caract == '_') {
                     identifier();
                 } else {
-                    System.err.println("Ligne " + line + " : Caractère inattendu '" + caract + "'");
+                    System.err.println("Line " + line + " : Unexpected character '" + caract + "'");
                 }
                 break;
-
         }
     }
-
 
     /**
      * Conditionally consumes the current character if it matches the expected character.
@@ -212,7 +222,7 @@ public class Lexer {
     }
 
     /**
-     * Consumes and returns the current character, advancing the offset pointer by one.
+     * Consumes and returns the current character, advancing the offset pointer by one position.
      *
      * @return The consumed character.
      */
@@ -231,7 +241,6 @@ public class Lexer {
      */
     private void addToken(TokenType type) {
         String text = input.substring(start, current);
-
         addToken(type, text);
     }
 
@@ -242,8 +251,7 @@ public class Lexer {
      * @param lexeme The raw or processed string value of the token.
      */
     private void addToken(TokenType type, String lexeme) {
-        Token token = new Token(type,lexeme, this.line);
-
+        Token token = new Token(type, lexeme, this.line);
         tokens.add(token);
     }
 
@@ -307,7 +315,7 @@ public class Lexer {
         }
 
         if (isAtEnd()) {
-            System.err.println("Ligne " + line + " : Chaîne non terminée.");
+            System.err.println("Line " + line + " : Unterminated string literal.");
             return;
         }
 

@@ -1,4 +1,5 @@
 package parser;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,34 +11,41 @@ import lexer.TokenType;
  * Performs syntactic analysis (parsing) on a stream of tokens produced by the {@link lexer.Lexer}.
  * <p>
  * The {@code Parser} follows a recursive descent parsing strategy to construct an Abstract Syntax
- * Tree (AST) composed of {@link Stmt} and {@link Expr} nodes according to the GEM language grammar.
+ * Tree (AST) composed of {@link Stmt} and {@link Expr} nodes according to the GEM language grammar specifications.
  * </p>
  *
  * @author Van De Perre Harry
  * @version 1.0
  */
 public class Parser {
-    /** The linear list of tokens to parse. */
+    /** The linear sequence of tokens produced by the lexer to be parsed. */
     private final List<Token> tokens;
-    /** The index pointing to the token currently being inspected. */
+
+    /** The index cursor pointing to the token currently under inspection. */
     private int current = 0;
 
-    public Parser(List<Token> tokens) { this.tokens = tokens; }
+    /**
+     * Constructs a new {@code Parser} instance with a given token stream.
+     *
+     * @param tokens The list of {@link Token} objects to parse.
+     */
+    public Parser(List<Token> tokens) {
+        this.tokens = tokens;
+    }
 
     /**
-     * Parses the full sequence of tokens into a list of AST statement nodes.
+     * Parses the complete sequence of tokens into a sequential list of AST statement nodes.
      * <p>
-     * Iterates until the {@link TokenType#EOF} token is reached, attempting to parse top-level
-     * declarations sequentially.
+     * Iterates through top-level declarations until the {@link TokenType#EOF} marker is reached.
      * </p>
-
-     * @return A {@link List} of {@link Stmt} nodes representing the complete AST of the program.
+     *
+     * @return A {@link List} of {@link Stmt} nodes representing the root Abstract Syntax Tree.
      * @throws RuntimeException If a syntax error is encountered during parsing.
      */
     public List<Stmt> parse() {
         List<Stmt> statements = new ArrayList<>();
 
-        // Main parsing loop: process declarations sequentially until the end-of-file marker is reached.
+        // Main parsing loop: process declarations sequentially until reaching end-of-file.
         while (!isAtEnd()) {
             statements.add(declaration());
         }
@@ -46,18 +54,20 @@ public class Parser {
     }
 
     /**
-     * Parses top-level declaration statements (variable declarations or standard statements).
+     * Parses top-level declaration statements (variable declarations, function declarations, or standard statements).
      * <p>
-     * <b>Grammar rule:</b> {@code declaration -> varDecl | statement}
+     * <b>Grammar rule:</b> {@code declaration -> varDecl | functionDecl | statement}
      * </p>
      *
      * @return The constructed {@link Stmt} AST node.
      */
     private Stmt declaration() {
-        // Dispatch to variable declaration parsing if the 'const' or 'mut' keyword is matched.
+        // Dispatch to constant or mutable variable declaration parsing
         if (match(TokenType.CONST)) return varDeclaration(true);
-
         if (match(TokenType.MUT)) return varDeclaration(false);
+
+        // Dispatch to function declaration parsing
+        if (match(TokenType.FN)) return functionDeclaration();
 
         return statement();
     }
@@ -69,39 +79,44 @@ public class Parser {
      * </p>
      *
      * @param isConstant {@code true} if declared via 'const', {@code false} if declared via 'mut'.
-     * @return A {@link VarDeclStmt} node encapsulating identifier name, declared type, initializer, and mutability.
-     * @throws RuntimeException If any syntax token in the declaration sequence is missing.
+     * @return A {@link VarDeclStmt} node encapsulating identifier name, declared type token, initializer, and mutability flag.
+     * @throws RuntimeException If any mandatory token in the declaration sequence is missing.
      */
     private Stmt varDeclaration(boolean isConstant) {
-        // Step 1: Ensure the binding is given a valid identifier name.
-        Token name = consume(TokenType.IDENTIFIER, "Nom de variable attendu.");
+        // Step 1: Ensure the declaration provides a valid identifier name.
+        Token name = consume(TokenType.IDENTIFIER, "Expected variable name.");
 
-        // Step 2: Enforce explicit typing syntax using colon separator (e.g., 'name : type').
-        consume(TokenType.COLON, "':' attendu après le nom de la variable.");
+        // Step 2: Enforce explicit typing syntax using a colon separator (e.g., 'name : type').
+        consume(TokenType.COLON, "Expected ':' after variable name.");
 
-        // Step 3: Advance over the type specifier token (e.g., int, string, bool).
+        // Step 3: Advance over the declared explicit type specifier token (e.g., int, string, bool).
         Token typeToken = advance();
 
-        // Step 4: Require explicit initialization on declaration using the assignment operator.
-        consume(TokenType.ASSIGN, "'=' attendu avant l'expression d'initialisation.");
+        // Step 4: Require explicit initialization upon declaration using the assignment operator.
+        consume(TokenType.ASSIGN, "Expected '=' before initialization expression.");
 
-        // Step 5: Parse the initialization expression.
+        // Step 5: Parse the initialization expression subtree.
         Expr initializer = expression();
 
         return new VarDeclStmt(name, typeToken, initializer, isConstant);
     }
 
     /**
-     * Parses imperative control statements, output instructions, and variable reassignments.
+     * Parses imperative control statements, output instructions, variable reassignments, and expression statements.
      * <p>
-     * <b>Grammar rule:</b> {@code statement -> printStmt | assignStmt}
+     * <b>Grammar rule:</b> {@code statement -> returnStmt | forStmt | whileStmt | ifStmt | blockStmt | printStmt | assignStmt | exprStmt}
      * </p>
      *
-     * @return The parsed {@link Stmt} node.
+     * @return The parsed {@link Stmt} AST node.
      * @throws RuntimeException If the current token sequence does not match any recognized statement syntax.
      */
     private Stmt statement() {
         return switch (peek().getType()) {
+            case RETURN -> {
+                advance();
+                yield returnStatement();
+            }
+
             case FOR -> {
                 advance();
                 yield forStatement();
@@ -129,23 +144,27 @@ public class Parser {
             }
 
             case IDENTIFIER -> {
-                Token name = advance();
-                consume(TokenType.ASSIGN, "'=' attendu après le nom de la variable.");
-                Expr value = expression();
-                yield new AssignStmt(name, value);
+                // Look ahead to distinguish variable assignment (identifier = ...) from expression calls (identifier(...))
+                if (checkNext(TokenType.ASSIGN)) {
+                    Token name = advance();
+                    consume(TokenType.ASSIGN, "Expected '=' after variable name.");
+                    Expr value = expression();
+                    yield new AssignStmt(name, value);
+                }
+
+                // Fall back to a general standalone expression statement (e.g., standalone function call 'greet(...)')
+                yield new ExpressionStmt(expression());
             }
 
             default ->
-                    throw new RuntimeException("Ligne " + peek().getLine() + " : Instruction non reconnue '" + peek().getLexeme() + "'");
+                    throw new RuntimeException("Line " + peek().getLine() + " : Unrecognized statement near '" + peek().getLexeme() + "'");
         };
-
     }
 
     /**
-     * Top-level entry point for parsing expressions.
+     * Entry point for expression parsing.
      * <p>
-     * Delegates to {@link #logicOr()} to begin recursive descent expression evaluation
-     * at the lowest operator precedence level (logical OR).
+     * Begins recursive descent evaluation starting at the lowest precedence level (logical OR).
      * </p>
      *
      * @return The parsed {@link Expr} AST node.
@@ -160,8 +179,7 @@ public class Parser {
      * <b>Grammar rule:</b> {@code logicOr -> logicAnd ( '||' logicAnd )*}
      * </p>
      *
-     * @return An {@link Expr} AST node representing a logical 'OR' subtree,
-     *         or a higher precedence expression if no '||' operator is present.
+     * @return An {@link Expr} AST node representing a logical 'OR' subtree, or a higher precedence expression node.
      */
     private Expr logicOr() {
         Expr expr = logicAnd();
@@ -178,9 +196,8 @@ public class Parser {
      * <p>
      * <b>Grammar rule:</b> {@code logicAnd -> equality ( '&&' equality )*}
      * </p>
-
-     * @return An {@link Expr} AST node representing a logical 'AND' subtree,
-     *         or a higher precedence expression if no '&&' operator is present.
+     *
+     * @return An {@link Expr} AST node representing a logical 'AND' subtree, or a higher precedence expression node.
      */
     private Expr logicAnd() {
         Expr expr = equality();
@@ -213,11 +230,11 @@ public class Parser {
     }
 
     /**
-     * Parses comparison operations (<, <=, >, >=).
+     * Parses relational comparison operations ({@code <}, {@code <=}, {@code >}, {@code >=}).
      * <p>
      * <b>Grammar rule:</b> {@code comparison -> term ( ( '>' | '>=' | '<' | '<=' ) term )*}
      * </p>
-
+     *
      * @return An {@link Expr} node representing a comparison subtree.
      */
     private Expr comparison() {
@@ -233,10 +250,12 @@ public class Parser {
     }
 
     /**
-     * Parses addition ('+') and subtraction ('-') operations.
+     * Parses addition ({@code +}) and subtraction ({@code -}) arithmetic operations.
      * <p>
      * <b>Grammar rule:</b> {@code term -> factor ( ('+' | '-') factor )*}
      * </p>
+     *
+     * @return An {@link Expr} node representing an additive binary operation.
      */
     private Expr term() {
         Expr expr = factor();
@@ -251,10 +270,12 @@ public class Parser {
     }
 
     /**
-     * Parses multiplication ('*') and division ('/') operations.
+     * Parses multiplication ({@code *}) and division ({@code /}) arithmetic operations.
      * <p>
      * <b>Grammar rule:</b> {@code factor -> primary ( ('*' | '/') primary )*}
      * </p>
+     *
+     * @return An {@link Expr} node representing a multiplicative binary operation.
      */
     private Expr factor() {
         Expr expr = unary();
@@ -266,230 +287,6 @@ public class Parser {
         }
 
         return expr;
-    }
-
-    /**
-     * Parses primary terminal nodes (literals and identifier variable references).
-     * <p>
-     * <b>Grammar rule:</b> {@code primary -> NUMBER | STRING | BOOLEAN | IDENTIFIER}
-     * </p>
-     *
-     * @return A {@link LiteralExpr} or {@link VariableExpr} leaf node.
-     * @throws RuntimeException If the token stream does not match any valid expression literal or identifier.
-     */
-    private Expr primary() {
-        // Primitive value literals (Number, String, Boolean).
-        if (match(TokenType.NUMBER, TokenType.STRING, TokenType.BOOLEAN)) return new LiteralExpr(previous().getLexeme());
-
-        // Variable identifier lookups in expressions.
-        if (match(TokenType.IDENTIFIER)) return new VariableExpr(previous());
-
-        // Grouping expression
-        if (match(TokenType.LPAREN)) {
-            Expr expr = expression();
-            consume(TokenType.RPAREN, "Parenthèse fermante ')' attendue après l'expression.");
-            return expr;
-        }
-        throw new RuntimeException("Ligne " + peek().getLine() + " : Expression attendue près de '" + peek().getLexeme() + "'");
-    }
-
-    /**
-     * Inspects the current lookahead token without consuming it.
-     *
-     * @return The {@link Token} at the current cursor index.
-     */
-    private Token peek() { return this.tokens.get(this.current); }
-
-    /**
-     * Returns the most recently consumed token.
-     *
-     * @return The previous {@link Token} in the stream.
-     */
-    private Token previous() { return this.tokens.get(this.current - 1); }
-
-    /**
-     * Determines whether the parser has reached the end of the token stream.
-     *
-     * @return {@code true} if the current token is {@link TokenType#EOF}; {@code false} otherwise.
-     */
-    private boolean isAtEnd() {
-        return peek().getType() == TokenType.EOF;
-    }
-
-    /**
-     * Consumes the current token and moves the cursor forward by one position.
-     *
-     * @return The consumed {@link Token}.
-     */
-    private Token advance() {
-        if (!isAtEnd()) current++;
-
-        return previous();
-    }
-
-    /**
-     * Non-consuming lookahead check. Determines if the current token matches a given type.
-     *
-     * @param type The {@link TokenType} to check for.
-     * @return {@code true} if matched and not at EOF; {@code false} otherwise.
-     */
-    private boolean check(TokenType type) {
-        if (isAtEnd()) return false;
-
-        return peek().getType() == type;
-    }
-
-    /**
-     * Checks if the current token matches any of the supplied candidate types.
-     * <p>
-     * Automatically consumes the token via {@link #advance()} on the first matching type.
-     * </p>
-     *
-     * @param types Variadic candidate list of {@link TokenType} options.
-     * @return {@code true} if a candidate matched and was consumed; {@code false} otherwise.
-     */
-    private boolean match(TokenType... types) {
-        for (TokenType type : types) {
-            if (check(type)) {
-                advance();
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Enforces token matching at critical grammar junction points.
-     * <p>
-     * Consumes the current token if it matches the expected {@link TokenType}.
-     * Throws a descriptive syntax error if the assertion fails.
-     * </p>
-     *
-     * @param type    The expected {@link TokenType}.
-     * @param message The error detail message to display if the match fails.
-     * @return The consumed {@link Token}.
-     * @throws RuntimeException If the current token does not match the expected type.
-     */
-    private Token consume(TokenType type, String message) {
-        if (check(type)) return advance();
-
-        throw new RuntimeException("Ligne " + peek().getLine() + " : " + message);
-    }
-
-    /**
-     * Method to parse block of code.
-     * @return List<Stmt> : list of statement into the block
-     */
-    private List<Stmt> block() {
-        List<Stmt> statements = new ArrayList<>();
-        // Adding each parse instruction
-        while (!check(TokenType.RBRACE) && !isAtEnd()) statements.add(declaration());
-
-        consume(TokenType.RBRACE, "Accolade fermante '}' attendue après le bloc.");
-
-        return statements;
-    }
-
-    /**
-     * Parses a conditional 'if' statement with an optional 'else' branch.
-     * <p>
-     * <b>Grammar rule:</b> {@code ifStmt -> 'if' expression statement ( 'else' statement )?}
-     * </p>
-     *
-     * @return An {@link IfStmt} AST node encapsulating condition and branches.
-     */
-    private Stmt ifStatement() {
-        Expr condition = expression();
-
-        Stmt thenBranch = statement();
-
-        Stmt elseBranch = null;
-        if (match(TokenType.ELSE)) elseBranch = statement();
-
-        return new IfStmt(condition, thenBranch, elseBranch);
-    }
-
-    /**
-     * Parses an iterative 'while' loop statement.
-     * <p>
-     * <b>Grammar rule:</b> {@code whileStmt -> 'while' expression statement}
-     * </p>
-     *
-     * @return A {@link WhileStmt} AST node encapsulating the condition expression and body statement.
-     */
-    private Stmt whileStatement() {
-        Expr condition = expression();
-
-        Stmt body = statement();
-
-        return new WhileStmt(condition, body);
-    }
-
-    /**
-     * Parses a 'for' loop statement and desugars it into an AST composed of local block scopes and a 'while' loop.
-     * <p>
-     * <b>Grammar rule:</b> {@code forStmt -> 'for' '(' ( varDecl | statement | ';' ) expression? ';' statement? ')' statement}
-     * </p>
-     *
-     * @return A {@link Stmt} AST node representing the desugared 'for' loop.
-     */
-    private Stmt forStatement() {
-        // Consomme '('
-        consume(TokenType.LPAREN, "'(' attendu après 'for'.");
-
-        // 1. Initialisation
-        Stmt initializer;
-        if (match(TokenType.SEMICOLON)) initializer = null;
-
-
-        else if (match(TokenType.CONST)) {
-            initializer = varDeclaration(true);
-            consume(TokenType.SEMICOLON, "';' attendu après l'initialisation de la boucle 'for'.");
-        } else if (match(TokenType.MUT)) {
-            initializer = varDeclaration(false);
-            consume(TokenType.SEMICOLON, "';' attendu après l'initialisation de la boucle 'for'.");
-        } else {
-            initializer = statement();
-            consume(TokenType.SEMICOLON, "';' attendu après l'initialisation de la boucle 'for'.");
-        }
-
-        // 2. Condition
-        Expr condition = null;
-        if (!check(TokenType.SEMICOLON)) condition = expression();
-        consume(TokenType.SEMICOLON, "';' attendu après la condition du 'for'.");
-
-
-        // 3. Incrémentation
-        Stmt increment = null;
-        if (!check(TokenType.RPAREN)) {
-            Token name = consume(TokenType.IDENTIFIER, "Nom de variable attendu pour l'incrément.");
-            consume(TokenType.ASSIGN, "'=' attendu après le nom de la variable d'incrément.");
-            Expr value = expression();
-            increment = new AssignStmt(name, value);
-        }
-
-        // Consomme ')'
-        consume(TokenType.RPAREN, "')' attendu après les clauses du 'for'.");
-
-        // 4. Corps de la boucle
-        Stmt body = statement();
-
-        // --- DÉSUCRAGE SYNTAXIQUE (AST Desugaring) ---
-
-        // Ajouter l'incrément à la fin du corps
-        if (increment != null) body = new BlockStmt(List.of(body, increment));
-
-
-        // Condition par défaut à true si absente (ex: for(;;))
-        if (condition == null) condition = new LiteralExpr(true);
-
-        // Transformer en boucle while
-        body = new WhileStmt(condition, body);
-
-        // Encapsuler l'initialisation et le while dans un bloc parent
-        if (initializer != null) body = new BlockStmt(List.of(initializer, body));
-
-        return body;
     }
 
     /**
@@ -507,5 +304,323 @@ public class Parser {
             return new UnaryExpr(operator, right);
         }
         return primary();
+    }
+
+    /**
+     * Parses primary terminal nodes (literals, variable references, parenthesized expressions, or function call invocations).
+     * <p>
+     * <b>Grammar rule:</b> {@code primary -> NUMBER | STRING | BOOLEAN | IDENTIFIER ( '(' arguments? ')' )? | '(' expression ')'}
+     * </p>
+     *
+     * @return A {@link LiteralExpr}, {@link VariableExpr}, or {@link CallExpr} leaf node.
+     * @throws RuntimeException If the token stream does not match any valid expression element.
+     */
+    private Expr primary() {
+        // Parse primitive value literals (Number, String, Boolean)
+        if (match(TokenType.NUMBER, TokenType.STRING, TokenType.BOOLEAN)) {
+            return new LiteralExpr(previous().getLexeme());
+        }
+
+        // Parse variable access or function call invocation
+        if (match(TokenType.IDENTIFIER)) {
+            Token name = previous();
+
+            // Function call signature: identifier followed immediately by '('
+            if (match(TokenType.LPAREN)) {
+                List<Expr> arguments = new ArrayList<>();
+                if (!check(TokenType.RPAREN)) {
+                    do {
+                        arguments.add(expression());
+                    } while (match(TokenType.COMMA));
+                }
+                consume(TokenType.RPAREN, "Expected ')' after function argument list.");
+                return new CallExpr(name, arguments);
+            }
+
+            // Simple variable evaluation leaf node
+            return new VariableExpr(name);
+        }
+
+        // Parenthesized grouping expression
+        if (match(TokenType.LPAREN)) {
+            Expr expr = expression();
+            consume(TokenType.RPAREN, "Expected closing ')' after grouping expression.");
+            return expr;
+        }
+
+        throw new RuntimeException("Line " + peek().getLine() + " : Expected expression near '" + peek().getLexeme() + "'");
+    }
+
+    /**
+     * Inspects the current lookahead token without consuming it.
+     *
+     * @return The {@link Token} at the current cursor index.
+     */
+    private Token peek() {
+        return this.tokens.get(this.current);
+    }
+
+    /**
+     * Retrieves the most recently consumed token from the stream.
+     *
+     * @return The previous {@link Token}.
+     */
+    private Token previous() {
+        return this.tokens.get(this.current - 1);
+    }
+
+    /**
+     * Determines whether the parser has reached the end of the token stream.
+     *
+     * @return {@code true} if the current token is {@link TokenType#EOF}; {@code false} otherwise.
+     */
+    private boolean isAtEnd() {
+        return peek().getType() == TokenType.EOF;
+    }
+
+    /**
+     * Consumes the current lookahead token and advances the cursor index forward.
+     *
+     * @return The consumed {@link Token}.
+     */
+    private Token advance() {
+        if (!isAtEnd()) current++;
+        return previous();
+    }
+
+    /**
+     * Checks whether the current lookahead token matches a specified type without consuming it.
+     *
+     * @param type The {@link TokenType} to test against.
+     * @return {@code true} if matched and not at EOF; {@code false} otherwise.
+     */
+    private boolean check(TokenType type) {
+        if (isAtEnd()) return false;
+        return peek().getType() == type;
+    }
+
+    /**
+     * Checks if the current token matches any of the supplied candidate types.
+     * <p>
+     * Automatically consumes the matched token via {@link #advance()} on the first hit.
+     * </p>
+     *
+     * @param types Variadic list of candidate {@link TokenType} instances.
+     * @return {@code true} if a candidate type matched and was consumed; {@code false} otherwise.
+     */
+    private boolean match(TokenType... types) {
+        for (TokenType type : types) {
+            if (check(type)) {
+                advance();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Enforces token matching at structural grammar junctions.
+     * <p>
+     * Consumes the token if it matches {@code type}; throws a syntax error otherwise.
+     * </p>
+     *
+     * @param type    The expected {@link TokenType}.
+     * @param message The detailed error message to include if matching fails.
+     * @return The consumed {@link Token}.
+     * @throws RuntimeException If the lookahead token fails to match the expected type.
+     */
+    private Token consume(TokenType type, String message) {
+        if (check(type)) return advance();
+        throw new RuntimeException("Line " + peek().getLine() + " : " + message);
+    }
+
+    /**
+     * Parses a scoped block of statements enclosed within curly braces ({@code { ... }}).
+     *
+     * @return A {@link List} of {@link Stmt} nodes parsed inside the block scope.
+     */
+    private List<Stmt> block() {
+        List<Stmt> statements = new ArrayList<>();
+
+        // Sequentially parse statements inside the block until encountering '}' or EOF
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            statements.add(declaration());
+        }
+
+        consume(TokenType.RBRACE, "Expected closing '}' after block statement.");
+        return statements;
+    }
+
+    /**
+     * Parses a conditional 'if' statement with an optional 'else' branch.
+     * <p>
+     * <b>Grammar rule:</b> {@code ifStmt -> 'if' expression statement ( 'else' statement )?}
+     * </p>
+     *
+     * @return An {@link IfStmt} AST node encapsulating condition, then-branch, and optional else-branch.
+     */
+    private Stmt ifStatement() {
+        Expr condition = expression();
+        Stmt thenBranch = statement();
+
+        Stmt elseBranch = null;
+        if (match(TokenType.ELSE)) {
+            elseBranch = statement();
+        }
+
+        return new IfStmt(condition, thenBranch, elseBranch);
+    }
+
+    /**
+     * Parses an iterative 'while' loop statement.
+     * <p>
+     * <b>Grammar rule:</b> {@code whileStmt -> 'while' expression statement}
+     * </p>
+     *
+     * @return A {@link WhileStmt} AST node encapsulating condition expression and body.
+     */
+    private Stmt whileStatement() {
+        Expr condition = expression();
+        Stmt body = statement();
+
+        return new WhileStmt(condition, body);
+    }
+
+    /**
+     * Parses a 'for' loop statement and desugars it into an AST composed of local block scopes and a 'while' loop.
+     * <p>
+     * <b>Grammar rule:</b> {@code forStmt -> 'for' '(' ( varDecl | statement | ';' ) expression? ';' statement? ')' statement}
+     * </p>
+     *
+     * @return A {@link Stmt} AST node representing the desugared 'for' loop structure.
+     */
+    private Stmt forStatement() {
+        consume(TokenType.LPAREN, "Expected '(' after 'for'.");
+
+        // 1. Parse loop initializer clause
+        Stmt initializer;
+        if (match(TokenType.SEMICOLON)) {
+            initializer = null;
+        } else if (match(TokenType.CONST)) {
+            initializer = varDeclaration(true);
+            consume(TokenType.SEMICOLON, "Expected ';' after 'for' loop initialization.");
+        } else if (match(TokenType.MUT)) {
+            initializer = varDeclaration(false);
+            consume(TokenType.SEMICOLON, "Expected ';' after 'for' loop initialization.");
+        } else {
+            initializer = statement();
+            consume(TokenType.SEMICOLON, "Expected ';' after 'for' loop initialization.");
+        }
+
+        // 2. Parse loop condition clause
+        Expr condition = null;
+        if (!check(TokenType.SEMICOLON)) {
+            condition = expression();
+        }
+        consume(TokenType.SEMICOLON, "Expected ';' after 'for' loop condition.");
+
+        // 3. Parse loop increment clause
+        Stmt increment = null;
+        if (!check(TokenType.RPAREN)) {
+            Token name = consume(TokenType.IDENTIFIER, "Expected variable name for loop increment.");
+            consume(TokenType.ASSIGN, "Expected '=' after increment variable name.");
+            Expr value = expression();
+            increment = new AssignStmt(name, value);
+        }
+
+        consume(TokenType.RPAREN, "Expected ')' after 'for' loop clauses.");
+
+        // 4. Parse loop body statement
+        Stmt body = statement();
+
+        // --- AST SYNTACTIC DESUGARING ---
+
+        // Append increment statement to the bottom of the loop body
+        if (increment != null) {
+            body = new BlockStmt(List.of(body, increment));
+        }
+
+        // Default condition to 'true' if omitted (e.g., for(;;))
+        if (condition == null) {
+            condition = new LiteralExpr(true);
+        }
+
+        // Desugar into equivalent 'while' loop structure
+        body = new WhileStmt(condition, body);
+
+        // Enclose initializer and while loop inside a new block scope
+        if (initializer != null) {
+            body = new BlockStmt(List.of(initializer, body));
+        }
+
+        return body;
+    }
+
+    /**
+     * Parses a function declaration statement.
+     * <p>
+     * <b>Grammar rule:</b> {@code function -> 'fn' IDENTIFIER '(' parameters? ')' ( ':' type )? '{' block '}'}
+     * </p>
+     *
+     * @return A {@link FunctionStmt} AST node representing the declared function.
+     */
+    private FunctionStmt functionDeclaration() {
+        Token name = consume(TokenType.IDENTIFIER, "Expected function name.");
+
+        consume(TokenType.LPAREN, "Expected '(' after function name.");
+        List<Token> parameters = new ArrayList<>();
+
+        if (!check(TokenType.RPAREN)) {
+            do {
+                Token param = consume(TokenType.IDENTIFIER, "Expected parameter name.");
+                parameters.add(param);
+
+                // Handle optional explicit parameter type annotation (e.g., param : int)
+                if (match(TokenType.COLON)) {
+                    advance();
+                }
+            } while (match(TokenType.COMMA));
+        }
+        consume(TokenType.RPAREN, "Expected ')' after parameter list.");
+
+        // Handle optional explicit return type annotation (e.g., : int)
+        if (match(TokenType.COLON)) {
+            advance();
+        }
+
+        consume(TokenType.LBRACE, "Expected '{' before function body.");
+        List<Stmt> body = block();
+
+        return new FunctionStmt(name, parameters, body);
+    }
+
+    /**
+     * Parses a return statement.
+     * <p>
+     * <b>Grammar rule:</b> {@code returnStmt -> 'return' expression?}
+     * </p>
+     *
+     * @return A {@link ReturnStmt} AST node representing the return instruction.
+     */
+    private Stmt returnStatement() {
+        Token keyword = previous();
+        Expr value = null;
+
+        if (!check(TokenType.RBRACE) && !check(TokenType.EOF)) {
+            value = expression();
+        }
+
+        return new ReturnStmt(keyword, value);
+    }
+
+    /**
+     * Checks if the token immediately following the current lookahead token matches a given type.
+     *
+     * @param type The {@link TokenType} to inspect.
+     * @return {@code true} if the next token matches; {@code false} otherwise.
+     */
+    private boolean checkNext(TokenType type) {
+        if (current + 1 >= tokens.size()) return false;
+        return tokens.get(current + 1).getType() == type;
     }
 }

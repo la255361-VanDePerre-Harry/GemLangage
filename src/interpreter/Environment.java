@@ -21,19 +21,28 @@ import java.util.Set;
 public class Environment {
     /** Map binding variable names (identifiers) to their stored runtime values. */
     private final Map<String, Object> values = new HashMap<>();
+
     /** Set tracking variable names declared as immutable constants ('const'). */
     private final Set<String> constants = new HashSet<>();
+
     /** Reference to the outer enclosing scope environment, or {@code null} if this is the global scope. */
     private final Environment enclosing;
 
-    public Environment(){
+    /**
+     * Constructs a global environment scope with no parent enclosing scope.
+     */
+    public Environment() {
         this.enclosing = null;
     }
 
+    /**
+     * Constructs a local environment scope nested within an enclosing parent scope.
+     *
+     * @param enclosing The parent {@link Environment} representing the outer lexical scope.
+     */
     public Environment(Environment enclosing) {
         this.enclosing = enclosing;
     }
-
 
     /**
      * Binds a new symbol name to an initial value in the current environment scope.
@@ -41,22 +50,38 @@ public class Environment {
      * <b>Preconditions:</b> The variable name must not already exist in the scope.<br>
      * <b>Postconditions:</b> The name is bound in {@code values}, and registered in {@code constants} if specified.
      * </p>
-
+     *
      * @param name       The identifier string of the variable or constant (must not be {@code null}).
      * @param value      The initial runtime value evaluated from the initializer expression.
      * @param isConstant {@code true} if declared with 'const'; {@code false} if declared with 'mut'.
      * @throws RuntimeException If a variable with the same identifier name is already defined in this environment.
      */
     public void define(String name, Object value, boolean isConstant) {
-        // Enforce single-definition rule within the same scope to prevent redeclaration bugs.
-        if(this.values.containsKey(name)) throw new RuntimeException("La variable '" + name + "' est déjà définie dans ce contexte.");
+        // Enforce single-definition rule within the same scope to prevent redeclaration bugs
+        if (this.values.containsKey(name)) {
+            throw new RuntimeException("Variable '" + name + "' is already defined in this scope.");
+        }
 
-        // Bind symbol name to its evaluated runtime object value.
+        // Bind symbol name to its evaluated runtime object value
         this.values.put(name, value);
 
-        // Track constant immutability metadata if declared with 'const'.
-        if(isConstant) constants.add(name);
+        // Track constant immutability metadata if declared with 'const'
+        if (isConstant) {
+            constants.add(name);
+        }
+    }
 
+    /**
+     * Binds a mutable symbol name (variable or function runtime object) in the current scope.
+     * <p>
+     * Delegates to {@link #define(String, Object, boolean)} with {@code isConstant} set to {@code false}.
+     * </p>
+     *
+     * @param name  The identifier string of the variable or symbol.
+     * @param value The runtime value object.
+     */
+    public void define(String name, Object value) {
+        define(name, value, false);
     }
 
     /**
@@ -73,15 +98,17 @@ public class Environment {
     public Object get(Token name) {
         String varName = name.getLexeme();
 
-        // Perform memory lookup; return bound runtime object if found.
-        if (this.values.containsKey(varName)) return this.values.get(varName);
+        // Perform memory lookup; return bound runtime object if found
+        if (this.values.containsKey(varName)) {
+            return this.values.get(varName);
+        }
 
-        // Delegate lookup to enclosing outer scope if variable is not in local scope.
-        if (this.enclosing != null) return this.enclosing.get(name);
+        // Delegate lookup to enclosing outer scope if variable is not in local scope
+        if (this.enclosing != null) {
+            return this.enclosing.get(name);
+        }
 
-
-        throw new RuntimeException("Ligne " + name.getLine() + " : Variable non définie '" + varName + "'.");
-
+        throw new RuntimeException("Line " + name.getLine() + " : Undefined variable '" + varName + "'.");
     }
 
     /**
@@ -100,22 +127,31 @@ public class Environment {
 
         // If variable exists in current local scope
         if (this.values.containsKey(varName)) {
-            // Protect immutable bindings from mutation attempts.
+            // Protect immutable bindings from mutation attempts
             if (this.constants.contains(varName)) {
-                throw new RuntimeException("Ligne " + name.getLine() + " : Impossible de modifier la constante '" + varName + "'.");
+                throw new RuntimeException("Line " + name.getLine() + " : Cannot reassign constant '" + varName + "'.");
             }
-            // Perform in-place value update in memory map.
+            // Perform in-place value update in memory map
             this.values.put(varName, value);
             return;
         }
 
-        // Delegate reassignment to outer enclosing scope if not found locally.
+        // Delegate reassignment to outer enclosing scope if not found locally
         if (this.enclosing != null) {
             this.enclosing.assign(name, value);
             return;
         }
 
-        // Ensure variable exists before attempting mutation.
-        throw new RuntimeException("Ligne " + name.getLine() + " : Variable non définie '" + varName + "'.");
+        // Ensure variable exists before attempting mutation
+        throw new RuntimeException("Line " + name.getLine() + " : Undefined variable '" + varName + "'.");
+    }
+
+    /**
+     * Retrieves the outer enclosing parent environment.
+     *
+     * @return The parent {@link Environment} instance, or {@code null} if this is the global scope.
+     */
+    public Environment getParent() {
+        return this.enclosing;
     }
 }
