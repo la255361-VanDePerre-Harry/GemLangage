@@ -106,8 +106,16 @@ public class Lexer {
             case '*':
                 addToken(TokenType.STAR);
                 break;
+
             case '/':
-                addToken(TokenType.SLASH);
+                if (match('/')) {
+                    // C'est un commentaire // : on consomme jusqu'à la fin de la ligne
+                    while (peek() != '\n' && !isAtEnd()) {
+                        advance();
+                    }
+                } else {
+                    addToken(TokenType.SLASH);
+                }
                 break;
 
             case '>':

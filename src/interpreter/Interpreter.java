@@ -124,7 +124,7 @@ public class Interpreter {
             case LogicalExpr logical -> {
                 Object left = evaluate(logical.getLeft());
 
-                // Short-circuit evaluation logic
+                // Evaluation en court-circuit (Short-circuit evaluation)
                 if (logical.getOperator().getType() == TokenType.OR_OR) {
                     if (isTruthy(left)) yield true;
                 } else {
