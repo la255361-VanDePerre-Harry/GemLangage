@@ -20,6 +20,7 @@ public enum TokenType {
     ELSE,
     WHILE,
     PRINT,
+    FOR,
 
     // =========================================================================
     // Native Data Types
@@ -52,6 +53,7 @@ public enum TokenType {
     // Symbols and Delimiters
     // =========================================================================
     COLON,
+    SEMICOLON,
     LPAREN,
     RPAREN,
     LBRACE,

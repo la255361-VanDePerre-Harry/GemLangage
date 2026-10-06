@@ -43,6 +43,7 @@ public class Lexer {
         keywords.put("bool", TokenType.TYPE_BOOL);
         keywords.put("true", TokenType.BOOLEAN);
         keywords.put("false", TokenType.BOOLEAN);
+        keywords.put("for", TokenType.FOR);
     }
 
 
