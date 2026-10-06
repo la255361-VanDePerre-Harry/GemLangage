@@ -14,9 +14,21 @@ public class PrintStmt extends Stmt {
     /** The expression whose evaluated result will be printed to the standard console. */
     private final Expr expression;
 
+    /**
+     * Constructs a new {@code PrintStmt} node.
+     *
+     * @param expression The {@link Expr} node to evaluate and output to console.
+     */
     public PrintStmt(Expr expression) {
         this.expression = expression;
     }
 
-    public Expr getExpression() { return expression; }
+    /**
+     * Retrieves the expression to be evaluated and printed.
+     *
+     * @return The inner {@link Expr} AST node.
+     */
+    public Expr getExpression() {
+        return expression;
+    }
 }
