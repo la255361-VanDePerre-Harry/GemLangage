@@ -51,6 +51,8 @@ public enum TokenType {
     AND_AND,
     OR_OR,
     BANG,
+    GREATER_EQUAL,
+    LESS_EQUAL,
 
 
     // =========================================================================
