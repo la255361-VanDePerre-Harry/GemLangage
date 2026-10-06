@@ -12,14 +12,24 @@ import lexer.Token;
  * @author Van De Perre Harry
  * @version 1.0
  */
-public class VariableExpr extends Expr{
+public class VariableExpr extends Expr {
     /** The identifier token representing the variable being accessed. */
     private final Token name;
 
+    /**
+     * Constructs a new {@code VariableExpr} node.
+     *
+     * @param name The identifier {@link Token} specifying the variable name.
+     */
     public VariableExpr(Token name) {
         this.name = name;
     }
 
+    /**
+     * Retrieves the identifier token associated with this variable reference.
+     *
+     * @return The {@link Token} object representing the variable name.
+     */
     public Token getName() {
         return name;
     }
