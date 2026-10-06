@@ -48,6 +48,25 @@ public class Interpreter {
      */
     private void execute(Stmt stmt) {
         switch (stmt) {
+
+            // Expression Statement (ex: appel de fonction seul 'greet(...)')
+            case ExpressionStmt exprStmt -> evaluate(exprStmt.getExpression());
+
+            // Function Declaration Statement
+            case FunctionStmt function -> {
+                GemFunction gemFunction = new GemFunction(function);
+                environment.define(function.getName().getLexeme(), gemFunction);
+            }
+
+            // Return Statement
+            case ReturnStmt returnStmt -> {
+                Object value = null;
+                if (returnStmt.getValue() != null) {
+                    value = evaluate(returnStmt.getValue());
+                }
+                throw new ReturnException(value);
+            }
+
             // WHILE Statement
             case WhileStmt whileStmt -> {
                 while (isTruthy(evaluate(whileStmt.getCondition()))) {
@@ -138,6 +157,28 @@ public class Interpreter {
                 Object left = evaluate(binary.getLeft());
                 Object right = evaluate(binary.getRight());
                 yield evaluateBinary(binary.getOperator(), left, right);
+            }
+
+            case CallExpr call -> {
+                Object callee = environment.get(call.getCallee());
+
+                if (!(callee instanceof GemFunction function)) {
+                    throw new RuntimeException("Ligne " + call.getCallee().getLine() +
+                            " : L'identifiant '" + call.getCallee().getLexeme() + "' n'est pas une fonction.");
+                }
+
+                List<Object> arguments = new java.util.ArrayList<>();
+                for (Expr argument : call.getArguments()) {
+                    arguments.add(evaluate(argument));
+                }
+
+                if (arguments.size() != function.arity()) {
+                    throw new RuntimeException("Ligne " + call.getCallee().getLine() +
+                            " : La fonction '" + call.getCallee().getLexeme() + "' attend " +
+                            function.arity() + " arguments mais en a reçu " + arguments.size() + ".");
+                }
+
+                yield function.call(this, arguments);
             }
 
             default -> throw new RuntimeException("Expression non supportée à l'exécution : " + expr.getClass().getSimpleName());
@@ -253,4 +294,19 @@ public class Interpreter {
         throw new RuntimeException("La condition d'une instruction 'if' doit être de type booléen.");
     }
 
+    /**
+     * Resolves and returns the root global runtime environment.
+     * <p>
+     * Traverses up the scope hierarchy chain until reaching an environment without an enclosing parent.
+     * </p>
+     *
+     * @return The root global {@link Environment} instance.
+     */
+    public Environment getGlobals() {
+        Environment current = this.environment;
+        while (current.getParent() != null) {
+            current = current.getParent();
+        }
+        return current;
+    }
 }

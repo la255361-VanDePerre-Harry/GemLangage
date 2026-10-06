@@ -60,6 +60,19 @@ public class Environment {
     }
 
     /**
+     * Binds a mutable symbol name (variable or function runtime object) in the current scope.
+     * <p>
+     * Delegates to {@link #define(String, Object, boolean)} with {@code isConstant} set to {@code false}.
+     * </p>
+     *
+     * @param name  The identifier string of the variable or symbol.
+     * @param value The runtime value object.
+     */
+    public void define(String name, Object value) {
+        define(name, value, false);
+    }
+
+    /**
      * Resolves and retrieves the bound runtime value of a given variable token.
      * <p>
      * Searches the local scope first. If not found, delegates the lookup recursively to the
@@ -117,5 +130,14 @@ public class Environment {
 
         // Ensure variable exists before attempting mutation.
         throw new RuntimeException("Ligne " + name.getLine() + " : Variable non définie '" + varName + "'.");
+    }
+
+    /**
+     * Retrieves the outer enclosing parent environment.
+     *
+     * @return The parent {@link Environment} instance, or {@code null} if this is the global scope.
+     */
+    public Environment getParent() {
+        return this.enclosing;
     }
 }

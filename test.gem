@@ -1,58 +1,53 @@
-// === TEST COMPLET DU LANGAGE GEM ===
+// =========================================================================
+// 1. Déclarations de fonctions (GEM-14)
+// =========================================================================
 
-// 1. Déclarations de variables et constantes
-const MAX_LIMIT : int = 10
-mut counter : int = 0
-mut isActive : bool = true
-mut role : string = "admin"
+// Fonction avec retour de calcul
+fn add(a : int, b : int) : int {
+    return a + b
+}
 
-print "=== 1. Variables & Types ==="
-print counter
-print role
+// Fonction manipulant des comparaisons et des conditions
+fn max(a : int, b : int) : int {
+    if a >= b {
+        return a
+    }
+    return b
+}
 
-// 2. Bloc de portée locale (Scope & Shadowing)
+// Procédure sans return explicite (ExpressionStmt)
+fn greet(name : string) {
+    print "Bonjour " + name
+}
+
+// =========================================================================
+// 2. Programme principal
+// =========================================================================
+
+print "=== Test 1 : Appel de procédure ==="
+greet("GEM Developer")
+
+print "=== Test 2 : Fonctions & Arithmétique ==="
+mut x : int = 15
+mut y : int = 25
+mut sum : int = add(x, y)
+print sum
+
+print "=== Test 3 : Comparaisons (>=, <=) & Max ==="
+mut highest : int = max(x, y)
+print highest
+
+print "=== Test 4 : Structure FOR & Opérateurs logiques ==="
+for (mut i : int = 0; i <= 3; i = i + 1) {
+    if i >= 1 && i <= 2 {
+        print i
+    }
+}
+
+print "=== Test 5 : Portée (Scope) & Shadowing ==="
+mut value : int = 100
 {
-    mut counter : int = 99
-    print "Dans le bloc local :"
-    print counter
+    mut value : int = 500
+    print value
 }
-print "Hors du bloc local :"
-print counter
-
-// 3. Conditions complexes & Opérateurs logiques (GEM-13)
-print "=== 2. Conditionnels & Opérateurs Logiques ==="
-mut age : int = 22
-mut hasTicket : bool = true
-
-if (age >= 18 && hasTicket) || role == "admin" {
-    print "Acces autorise"
-} else {
-    print "Acces refuse"
-}
-
-// Négation simple et double (UnaryExpr)
-if !isActive {
-    print "Inactif"
-} else if !!isActive {
-    print "Actif confirme via double negation"
-}
-
-// 4. Boucle WHILE (GEM-11)
-print "=== 3. Boucle WHILE ==="
-mut w : int = 1
-while w <= 3 {
-    print w
-    w = w + 1
-}
-
-// 5. Boucle FOR (GEM-12)
-print "=== 4. Boucle FOR ==="
-for (mut i : int = 0; i < 3; i = i + 1) {
-    print i
-}
-
-// 6. Arithmétique & Unaire numérique
-print "=== 5. Inversion Numerique ==="
-mut val : int = 15
-mut negVal : int = -val
-print negVal
+print value

@@ -59,6 +59,9 @@ public class Parser {
 
         if (match(TokenType.MUT)) return varDeclaration(false);
 
+        if (match(TokenType.FN)) return functionDeclaration();
+
+
         return statement();
     }
 
@@ -92,9 +95,9 @@ public class Parser {
     }
 
     /**
-     * Parses imperative control statements, output instructions, and variable reassignments.
+     * Parses imperative control statements, output instructions, variable reassignments, and expression statements.
      * <p>
-     * <b>Grammar rule:</b> {@code statement -> printStmt | assignStmt}
+     * <b>Grammar rule:</b> {@code statement -> returnStmt | forStmt | whileStmt | ifStmt | blockStmt | printStmt | assignStmt | exprStmt}
      * </p>
      *
      * @return The parsed {@link Stmt} node.
@@ -102,6 +105,11 @@ public class Parser {
      */
     private Stmt statement() {
         return switch (peek().getType()) {
+            case RETURN -> {
+                advance();
+                yield returnStatement();
+            }
+
             case FOR -> {
                 advance();
                 yield forStatement();
@@ -129,16 +137,21 @@ public class Parser {
             }
 
             case IDENTIFIER -> {
-                Token name = advance();
-                consume(TokenType.ASSIGN, "'=' attendu après le nom de la variable.");
-                Expr value = expression();
-                yield new AssignStmt(name, value);
+                // Peek ahead to distinguish assignment (identifier = ...) from expression call (identifier(...))
+                if (checkNext(TokenType.ASSIGN)) {
+                    Token name = advance();
+                    consume(TokenType.ASSIGN, "'=' attendu après le nom de la variable.");
+                    Expr value = expression();
+                    yield new AssignStmt(name, value);
+                }
+
+                // Otherwise, parse as a general expression statement (e.g. function call 'greet(...)')
+                yield new ExpressionStmt(expression());
             }
 
             default ->
                     throw new RuntimeException("Ligne " + peek().getLine() + " : Instruction non reconnue '" + peek().getLexeme() + "'");
         };
-
     }
 
     /**
@@ -282,7 +295,24 @@ public class Parser {
         if (match(TokenType.NUMBER, TokenType.STRING, TokenType.BOOLEAN)) return new LiteralExpr(previous().getLexeme());
 
         // Variable identifier lookups in expressions.
-        if (match(TokenType.IDENTIFIER)) return new VariableExpr(previous());
+        if (match(TokenType.IDENTIFIER)) {
+            Token name = previous();
+
+            // Function call: identifier followed by '('
+            if (match(TokenType.LPAREN)) {
+                List<Expr> arguments = new ArrayList<>();
+                if (!check(TokenType.RPAREN)) {
+                    do {
+                        arguments.add(expression());
+                    } while (match(TokenType.COMMA));
+                }
+                consume(TokenType.RPAREN, "')' attendu après les arguments.");
+                return new CallExpr(name, arguments);
+            }
+
+            // Simple variable evaluation
+            return new VariableExpr(name);
+        }
 
         // Grouping expression
         if (match(TokenType.LPAREN)) {
@@ -507,5 +537,73 @@ public class Parser {
             return new UnaryExpr(operator, right);
         }
         return primary();
+    }
+
+    /**
+     * Parses a function declaration statement.
+     * <p>
+     * <b>Grammar rule:</b> {@code function -> 'fn' IDENTIFIER '(' parameters? ')' ( ':' type )? '{' block '}'}
+     * </p>
+     *
+     * @return A {@link FunctionStmt} AST node representing the declared function.
+     */
+    private FunctionStmt functionDeclaration() {
+        Token name = consume(TokenType.IDENTIFIER, "Nom de la fonction attendu.");
+
+        consume(TokenType.LPAREN, "'(' attendu après le nom de la fonction.");
+        List<Token> parameters = new ArrayList<>();
+
+        if (!check(TokenType.RPAREN)) {
+            do {
+                Token param = consume(TokenType.IDENTIFIER, "Nom de paramètre attendu.");
+                parameters.add(param);
+
+                // Si un type explicite est spécifié (ex: param : int)
+                if (match(TokenType.COLON)) {
+                    // Consomme le jeton de type (ex: int, string, bool, etc.)
+                    advance();
+                }
+            } while (match(TokenType.COMMA));
+        }
+        consume(TokenType.RPAREN, "')' attendu après les paramètres.");
+
+        // Handles optional explicit return type annotation (e.g., : int)
+        if (match(TokenType.COLON)) advance();
+
+        consume(TokenType.LBRACE, "'{' attendu avant le corps de la fonction.");
+        List<Stmt> body = block();
+
+        return new FunctionStmt(name, parameters, body);
+    }
+
+    /**
+     * Parses a return statement.
+     * <p>
+     * <b>Grammar rule:</b> {@code returnStmt -> 'return' expression? }
+     * </p>
+     *
+     * @return A {@link ReturnStmt} AST node representing the return instruction.
+     */
+    private Stmt returnStatement() {
+        Token keyword = previous();
+        Expr value = null;
+
+        if (!check(TokenType.RBRACE) && !check(TokenType.EOF)) {
+            value = expression();
+        }
+
+        return new ReturnStmt(keyword, value);
+    }
+
+    /**
+     * Checks if the token immediately following the current lookahead token matches a given type.
+     *
+     * @param type The {@link TokenType} to inspect.
+     * @return {@code true} if the next token matches; {@code false} otherwise.
+     */
+    private boolean checkNext(TokenType type) {
+        if (current + 1 >= tokens.size()) return false;
+
+        return tokens.get(current + 1).getType() == type;
     }
 }
