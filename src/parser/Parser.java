@@ -144,14 +144,52 @@ public class Parser {
     /**
      * Top-level entry point for parsing expressions.
      * <p>
-     * Delegates to {@link #equality()} to begin recursive descent expression evaluation
-     * at the lowest operator precedence level.
+     * Delegates to {@link #logicOr()} to begin recursive descent expression evaluation
+     * at the lowest operator precedence level (logical OR).
      * </p>
      *
      * @return The parsed {@link Expr} AST node.
      */
     private Expr expression() {
-        return equality();
+        return logicOr();
+    }
+
+    /**
+     * Parses logical 'OR' binary expressions ({@code ||}).
+     * <p>
+     * <b>Grammar rule:</b> {@code logicOr -> logicAnd ( '||' logicAnd )*}
+     * </p>
+     *
+     * @return An {@link Expr} AST node representing a logical 'OR' subtree,
+     *         or a higher precedence expression if no '||' operator is present.
+     */
+    private Expr logicOr() {
+        Expr expr = logicAnd();
+        while (match(TokenType.OR_OR)) {
+            Token operator = previous();
+            Expr right = logicAnd();
+            expr = new LogicalExpr(expr, operator, right);
+        }
+        return expr;
+    }
+
+    /**
+     * Parses logical 'AND' binary expressions ({@code &&}).
+     * <p>
+     * <b>Grammar rule:</b> {@code logicAnd -> equality ( '&&' equality )*}
+     * </p>
+
+     * @return An {@link Expr} AST node representing a logical 'AND' subtree,
+     *         or a higher precedence expression if no '&&' operator is present.
+     */
+    private Expr logicAnd() {
+        Expr expr = equality();
+        while (match(TokenType.AND_AND)) {
+            Token operator = previous();
+            Expr right = equality();
+            expr = new LogicalExpr(expr, operator, right);
+        }
+        return expr;
     }
 
     /**
@@ -218,11 +256,11 @@ public class Parser {
      * </p>
      */
     private Expr factor() {
-        Expr expr = primary();
+        Expr expr = unary();
 
         while (match(TokenType.STAR, TokenType.SLASH)) {
             Token operator = previous();
-            Expr right = primary();
+            Expr right = unary();
             expr = new BinaryExpr(expr, operator, right);
         }
 
@@ -451,5 +489,22 @@ public class Parser {
         if (initializer != null) body = new BlockStmt(List.of(initializer, body));
 
         return body;
+    }
+
+    /**
+     * Parses unary operations ({@code !} for logical NOT, {@code -} for numeric negation).
+     * <p>
+     * <b>Grammar rule:</b> {@code unary -> ( '!' | '-' ) unary | primary}
+     * </p>
+     *
+     * @return An {@link Expr} node representing a unary subtree or a primary expression.
+     */
+    private Expr unary() {
+        if (match(TokenType.BANG, TokenType.MINUS)) {
+            Token operator = previous();
+            Expr right = unary();
+            return new UnaryExpr(operator, right);
+        }
+        return primary();
     }
 }

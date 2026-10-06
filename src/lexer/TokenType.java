@@ -48,6 +48,10 @@ public enum TokenType {
     LESS,
     GREATER,
     EQUAL,
+    AND_AND,
+    OR_OR,
+    BANG,
+
 
     // =========================================================================
     // Symbols and Delimiters

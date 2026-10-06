@@ -1,3 +1,23 @@
-for (mut i : int = 0; i < 3; i = i + 1) {
-    print i
+mut isReady : bool = false
+mut count : int = 5
+
+// 1. Négation simple d'un booléen
+if !isReady {
+    print "System is waiting..."
 }
+
+// 2. Double négation (!!isReady -> false)
+if !!isReady {
+    print "Inaccessible"
+} else {
+    print "Double negation verified"
+}
+
+// 3. Négation combinée avec des expressions parenthésées
+if !(count == 0) {
+    print "Count is non-zero"
+}
+
+// 4. Inversion numérique (MINUS unaire)
+mut negativeCount : int = -count
+print negativeCount

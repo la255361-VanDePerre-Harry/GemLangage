@@ -106,8 +106,16 @@ public class Lexer {
             case '*':
                 addToken(TokenType.STAR);
                 break;
+
             case '/':
-                addToken(TokenType.SLASH);
+                if (match('/')) {
+                    // C'est un commentaire // : on consomme jusqu'à la fin de la ligne
+                    while (peek() != '\n' && !isAtEnd()) {
+                        advance();
+                    }
+                } else {
+                    addToken(TokenType.SLASH);
+                }
                 break;
 
             case '>':
@@ -130,6 +138,24 @@ public class Lexer {
                     // else that's an assign
                     addToken(TokenType.ASSIGN);
                 }
+                break;
+
+            case '&':
+                if (match('&')) addToken(TokenType.AND_AND);
+
+                else System.err.println("Ligne " + line + " : Caractère inattendu '&'. '&&' attendu.");
+
+                break;
+
+            case '|':
+                if (match('|')) addToken(TokenType.OR_OR);
+
+                else System.err.println("Ligne " + line + " : Caractère inattendu '|'. '||' attendu.");
+
+                break;
+
+            case '!':
+                addToken(TokenType.BANG);
                 break;
 
 
