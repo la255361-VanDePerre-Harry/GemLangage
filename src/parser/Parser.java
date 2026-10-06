@@ -256,11 +256,11 @@ public class Parser {
      * </p>
      */
     private Expr factor() {
-        Expr expr = primary();
+        Expr expr = unary();
 
         while (match(TokenType.STAR, TokenType.SLASH)) {
             Token operator = previous();
-            Expr right = primary();
+            Expr right = unary();
             expr = new BinaryExpr(expr, operator, right);
         }
 
@@ -489,5 +489,22 @@ public class Parser {
         if (initializer != null) body = new BlockStmt(List.of(initializer, body));
 
         return body;
+    }
+
+    /**
+     * Parses unary operations ({@code !} for logical NOT, {@code -} for numeric negation).
+     * <p>
+     * <b>Grammar rule:</b> {@code unary -> ( '!' | '-' ) unary | primary}
+     * </p>
+     *
+     * @return An {@link Expr} node representing a unary subtree or a primary expression.
+     */
+    private Expr unary() {
+        if (match(TokenType.BANG, TokenType.MINUS)) {
+            Token operator = previous();
+            Expr right = unary();
+            return new UnaryExpr(operator, right);
+        }
+        return primary();
     }
 }
