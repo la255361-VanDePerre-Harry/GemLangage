@@ -10,14 +10,24 @@ package ast;
  * @author Van De Perre Harry
  * @version 1.0
  */
-public class LiteralExpr extends Expr{
+public class LiteralExpr extends Expr {
     /** The runtime value represented by this literal node. */
     private final Object value;
 
+    /**
+     * Constructs a new {@code LiteralExpr} node.
+     *
+     * @param value The primitive or constant object value (e.g., {@link String}, {@link Integer}, or {@link Boolean}).
+     */
     public LiteralExpr(Object value) {
         this.value = value;
     }
 
+    /**
+     * Retrieves the raw value object stored within this literal expression.
+     *
+     * @return The runtime {@link Object} representation.
+     */
     public Object getValue() {
         return value;
     }
