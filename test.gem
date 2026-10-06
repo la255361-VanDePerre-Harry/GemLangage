@@ -1,11 +1,6 @@
-mut age : int = 20
+mut counter : int = 0
 
-if age > 18 {
-    print "Majeur"
-} else {
-    print "Mineur"
-}
-
-if age == 20 {
-    print "A exactement 20 ans"
+while counter < 3 {
+    print counter
+    counter = counter + 1
 }
