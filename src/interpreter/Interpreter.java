@@ -47,6 +47,13 @@ public class Interpreter {
      */
     private void execute(Stmt stmt) {
         switch (stmt) {
+            // WHILE Statement
+            case WhileStmt whileStmt -> {
+                while (isTruthy(evaluate(whileStmt.getCondition()))) {
+                    execute(whileStmt.getBody());
+                }
+            }
+
             // IF Statement
             case IfStmt ifStmt -> {
                 Object conditionValue = evaluate(ifStmt.getCondition());
