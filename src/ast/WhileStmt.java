@@ -10,19 +10,38 @@ package ast;
  * @author Van De Perre Harry
  * @version 1.0
  */
-public class WhileStmt extends Stmt{
+public class WhileStmt extends Stmt {
+    /** The condition expression evaluated before each iteration. */
     private final Expr condition;
+
+    /** The body statement or block executed when the condition evaluates to {@code true}. */
     private final Stmt body;
 
+    /**
+     * Constructs a new {@code WhileStmt} node.
+     *
+     * @param condition The {@link Expr} condition controlling the loop execution.
+     * @param body      The {@link Stmt} body executed on each true iteration.
+     */
     public WhileStmt(Expr condition, Stmt body) {
         this.condition = condition;
         this.body = body;
     }
 
+    /**
+     * Retrieves the loop condition expression.
+     *
+     * @return The condition {@link Expr} node.
+     */
     public Expr getCondition() {
         return condition;
     }
 
+    /**
+     * Retrieves the loop body statement.
+     *
+     * @return The body {@link Stmt} node.
+     */
     public Stmt getBody() {
         return body;
     }
