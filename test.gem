@@ -1,23 +1,58 @@
-mut isReady : bool = false
-mut count : int = 5
+// === TEST COMPLET DU LANGAGE GEM ===
 
-// 1. Négation simple d'un booléen
-if !isReady {
-    print "System is waiting..."
+// 1. Déclarations de variables et constantes
+const MAX_LIMIT : int = 10
+mut counter : int = 0
+mut isActive : bool = true
+mut role : string = "admin"
+
+print "=== 1. Variables & Types ==="
+print counter
+print role
+
+// 2. Bloc de portée locale (Scope & Shadowing)
+{
+    mut counter : int = 99
+    print "Dans le bloc local :"
+    print counter
 }
+print "Hors du bloc local :"
+print counter
 
-// 2. Double négation (!!isReady -> false)
-if !!isReady {
-    print "Inaccessible"
+// 3. Conditions complexes & Opérateurs logiques (GEM-13)
+print "=== 2. Conditionnels & Opérateurs Logiques ==="
+mut age : int = 22
+mut hasTicket : bool = true
+
+if (age >= 18 && hasTicket) || role == "admin" {
+    print "Acces autorise"
 } else {
-    print "Double negation verified"
+    print "Acces refuse"
 }
 
-// 3. Négation combinée avec des expressions parenthésées
-if !(count == 0) {
-    print "Count is non-zero"
+// Négation simple et double (UnaryExpr)
+if !isActive {
+    print "Inactif"
+} else if !!isActive {
+    print "Actif confirme via double negation"
 }
 
-// 4. Inversion numérique (MINUS unaire)
-mut negativeCount : int = -count
-print negativeCount
+// 4. Boucle WHILE (GEM-11)
+print "=== 3. Boucle WHILE ==="
+mut w : int = 1
+while w <= 3 {
+    print w
+    w = w + 1
+}
+
+// 5. Boucle FOR (GEM-12)
+print "=== 4. Boucle FOR ==="
+for (mut i : int = 0; i < 3; i = i + 1) {
+    print i
+}
+
+// 6. Arithmétique & Unaire numérique
+print "=== 5. Inversion Numerique ==="
+mut val : int = 15
+mut negVal : int = -val
+print negVal
