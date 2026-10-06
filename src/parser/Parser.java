@@ -102,6 +102,11 @@ public class Parser {
      */
     private Stmt statement() {
         return switch (peek().getType()) {
+            case FOR -> {
+                advance();
+                yield forStatement();
+            }
+
             case WHILE -> {
                 advance();
                 yield whileStatement();
@@ -379,5 +384,72 @@ public class Parser {
         Stmt body = statement();
 
         return new WhileStmt(condition, body);
+    }
+
+    /**
+     * Parses a 'for' loop statement and desugars it into an AST composed of local block scopes and a 'while' loop.
+     * <p>
+     * <b>Grammar rule:</b> {@code forStmt -> 'for' '(' ( varDecl | statement | ';' ) expression? ';' statement? ')' statement}
+     * </p>
+     *
+     * @return A {@link Stmt} AST node representing the desugared 'for' loop.
+     */
+    private Stmt forStatement() {
+        // Consomme '('
+        consume(TokenType.LPAREN, "'(' attendu après 'for'.");
+
+        // 1. Initialisation
+        Stmt initializer;
+        if (match(TokenType.SEMICOLON)) initializer = null;
+
+
+        else if (match(TokenType.CONST)) {
+            initializer = varDeclaration(true);
+            consume(TokenType.SEMICOLON, "';' attendu après l'initialisation de la boucle 'for'.");
+        } else if (match(TokenType.MUT)) {
+            initializer = varDeclaration(false);
+            consume(TokenType.SEMICOLON, "';' attendu après l'initialisation de la boucle 'for'.");
+        } else {
+            initializer = statement();
+            consume(TokenType.SEMICOLON, "';' attendu après l'initialisation de la boucle 'for'.");
+        }
+
+        // 2. Condition
+        Expr condition = null;
+        if (!check(TokenType.SEMICOLON)) condition = expression();
+        consume(TokenType.SEMICOLON, "';' attendu après la condition du 'for'.");
+
+
+        // 3. Incrémentation
+        Stmt increment = null;
+        if (!check(TokenType.RPAREN)) {
+            Token name = consume(TokenType.IDENTIFIER, "Nom de variable attendu pour l'incrément.");
+            consume(TokenType.ASSIGN, "'=' attendu après le nom de la variable d'incrément.");
+            Expr value = expression();
+            increment = new AssignStmt(name, value);
+        }
+
+        // Consomme ')'
+        consume(TokenType.RPAREN, "')' attendu après les clauses du 'for'.");
+
+        // 4. Corps de la boucle
+        Stmt body = statement();
+
+        // --- DÉSUCRAGE SYNTAXIQUE (AST Desugaring) ---
+
+        // Ajouter l'incrément à la fin du corps
+        if (increment != null) body = new BlockStmt(List.of(body, increment));
+
+
+        // Condition par défaut à true si absente (ex: for(;;))
+        if (condition == null) condition = new LiteralExpr(true);
+
+        // Transformer en boucle while
+        body = new WhileStmt(condition, body);
+
+        // Encapsuler l'initialisation et le while dans un bloc parent
+        if (initializer != null) body = new BlockStmt(List.of(initializer, body));
+
+        return body;
     }
 }

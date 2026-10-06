@@ -1,6 +1,3 @@
-mut counter : int = 0
-
-while counter < 3 {
-    print counter
-    counter = counter + 1
+for (mut i : int = 0; i < 3; i = i + 1) {
+    print i
 }
