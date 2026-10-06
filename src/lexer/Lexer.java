@@ -132,6 +132,24 @@ public class Lexer {
                 }
                 break;
 
+            case '&':
+                if (match('&')) addToken(TokenType.AND_AND);
+
+                else System.err.println("Ligne " + line + " : Caractère inattendu '&'. '&&' attendu.");
+
+                break;
+
+            case '|':
+                if (match('|')) addToken(TokenType.OR_OR);
+
+                else System.err.println("Ligne " + line + " : Caractère inattendu '|'. '||' attendu.");
+
+                break;
+
+            case '!':
+                addToken(TokenType.BANG);
+                break;
+
 
             case ' ':
             case '\r':
