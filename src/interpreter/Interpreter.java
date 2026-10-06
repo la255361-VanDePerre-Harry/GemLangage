@@ -48,6 +48,10 @@ public class Interpreter {
      */
     private void execute(Stmt stmt) {
         switch (stmt) {
+
+            // Expression Statement (ex: appel de fonction seul 'greet(...)')
+            case ExpressionStmt exprStmt -> evaluate(exprStmt.getExpression());
+
             // Function Declaration Statement
             case FunctionStmt function -> {
                 GemFunction gemFunction = new GemFunction(function);

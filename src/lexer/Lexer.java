@@ -162,6 +162,9 @@ public class Lexer {
                 addToken(TokenType.BANG);
                 break;
 
+            case ',':
+                addToken(TokenType.COMMA);
+                break;
 
             case ' ':
             case '\r':
