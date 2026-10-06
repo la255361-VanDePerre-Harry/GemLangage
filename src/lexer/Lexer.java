@@ -46,8 +46,6 @@ public class Lexer {
         keywords.put("for", TokenType.FOR);
         keywords.put("fn", TokenType.FN);
         keywords.put("return", TokenType.RETURN);
-        keywords.put("public", TokenType.PUBLIC);
-        keywords.put("private", TokenType.PRIVATE);
     }
 
 
