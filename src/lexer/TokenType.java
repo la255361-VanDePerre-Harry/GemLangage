@@ -20,6 +20,7 @@ public enum TokenType {
     ELSE,
     WHILE,
     PRINT,
+    FOR,
 
     // =========================================================================
     // Native Data Types
@@ -47,11 +48,18 @@ public enum TokenType {
     LESS,
     GREATER,
     EQUAL,
+    AND_AND,
+    OR_OR,
+    BANG,
+    GREATER_EQUAL,
+    LESS_EQUAL,
+
 
     // =========================================================================
     // Symbols and Delimiters
     // =========================================================================
     COLON,
+    SEMICOLON,
     LPAREN,
     RPAREN,
     LBRACE,

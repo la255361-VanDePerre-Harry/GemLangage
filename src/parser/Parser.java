@@ -101,40 +101,95 @@ public class Parser {
      * @throws RuntimeException If the current token sequence does not match any recognized statement syntax.
      */
     private Stmt statement() {
-        // Blocs statement
-        if (match(TokenType.LBRACE)) {
-            return new BlockStmt(block());
-        }
+        return switch (peek().getType()) {
+            case FOR -> {
+                advance();
+                yield forStatement();
+            }
 
-        // Print statement ('print expression')
-        if (match(TokenType.PRINT)) {
-            Expr value = expression();
-            return new PrintStmt(value);
-        }
+            case WHILE -> {
+                advance();
+                yield whileStatement();
+            }
 
-        // Variable reassignment ('identifier = expression')
-        // Uses lookahead via check() to distinguish reassignment from other identifier references.
-        if (check(TokenType.IDENTIFIER)) {
-            Token name = advance();
-            consume(TokenType.ASSIGN, "'=' attendu après le nom de la variable.");
-            Expr value = expression();
-            return new AssignStmt(name, value);
-        }
+            case IF -> {
+                advance();
+                yield ifStatement();
+            }
 
-        throw new RuntimeException("Ligne " + peek().getLine() + " : Instruction non reconnue '" + peek().getLexeme() + "'");
+            case LBRACE -> {
+                advance();
+                yield new BlockStmt(block());
+            }
+
+            case PRINT -> {
+                advance();
+                Expr value = expression();
+                yield new PrintStmt(value);
+            }
+
+            case IDENTIFIER -> {
+                Token name = advance();
+                consume(TokenType.ASSIGN, "'=' attendu après le nom de la variable.");
+                Expr value = expression();
+                yield new AssignStmt(name, value);
+            }
+
+            default ->
+                    throw new RuntimeException("Ligne " + peek().getLine() + " : Instruction non reconnue '" + peek().getLexeme() + "'");
+        };
+
     }
 
     /**
      * Top-level entry point for parsing expressions.
      * <p>
-     * Delegates to {@link #equality()} to begin recursive descent expression evaluation
-     * at the lowest operator precedence level.
+     * Delegates to {@link #logicOr()} to begin recursive descent expression evaluation
+     * at the lowest operator precedence level (logical OR).
      * </p>
      *
      * @return The parsed {@link Expr} AST node.
      */
     private Expr expression() {
-        return equality();
+        return logicOr();
+    }
+
+    /**
+     * Parses logical 'OR' binary expressions ({@code ||}).
+     * <p>
+     * <b>Grammar rule:</b> {@code logicOr -> logicAnd ( '||' logicAnd )*}
+     * </p>
+     *
+     * @return An {@link Expr} AST node representing a logical 'OR' subtree,
+     *         or a higher precedence expression if no '||' operator is present.
+     */
+    private Expr logicOr() {
+        Expr expr = logicAnd();
+        while (match(TokenType.OR_OR)) {
+            Token operator = previous();
+            Expr right = logicAnd();
+            expr = new LogicalExpr(expr, operator, right);
+        }
+        return expr;
+    }
+
+    /**
+     * Parses logical 'AND' binary expressions ({@code &&}).
+     * <p>
+     * <b>Grammar rule:</b> {@code logicAnd -> equality ( '&&' equality )*}
+     * </p>
+
+     * @return An {@link Expr} AST node representing a logical 'AND' subtree,
+     *         or a higher precedence expression if no '&&' operator is present.
+     */
+    private Expr logicAnd() {
+        Expr expr = equality();
+        while (match(TokenType.AND_AND)) {
+            Token operator = previous();
+            Expr right = equality();
+            expr = new LogicalExpr(expr, operator, right);
+        }
+        return expr;
     }
 
     /**
@@ -158,16 +213,17 @@ public class Parser {
     }
 
     /**
-     * Parses relational comparison operations ({@code >} and {@code <}).
+     * Parses comparison operations (<, <=, >, >=).
      * <p>
-     * <b>Grammar rule:</b> {@code comparison -> term ( ('>' | '<') term )*}
+     * <b>Grammar rule:</b> {@code comparison -> term ( ( '>' | '>=' | '<' | '<=' ) term )*}
      * </p>
-     *
-     * @return An {@link Expr} node representing a relational comparison subtree.
+
+     * @return An {@link Expr} node representing a comparison subtree.
      */
     private Expr comparison() {
         Expr expr = term();
-        while (match(TokenType.GREATER, TokenType.LESS)) {
+
+        while (match(TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL)) {
             Token operator = previous();
             Expr right = term();
             expr = new BinaryExpr(expr, operator, right);
@@ -201,11 +257,11 @@ public class Parser {
      * </p>
      */
     private Expr factor() {
-        Expr expr = primary();
+        Expr expr = unary();
 
         while (match(TokenType.STAR, TokenType.SLASH)) {
             Token operator = previous();
-            Expr right = primary();
+            Expr right = unary();
             expr = new BinaryExpr(expr, operator, right);
         }
 
@@ -320,6 +376,10 @@ public class Parser {
         throw new RuntimeException("Ligne " + peek().getLine() + " : " + message);
     }
 
+    /**
+     * Method to parse block of code.
+     * @return List<Stmt> : list of statement into the block
+     */
     private List<Stmt> block() {
         List<Stmt> statements = new ArrayList<>();
         // Adding each parse instruction
@@ -330,4 +390,122 @@ public class Parser {
         return statements;
     }
 
+    /**
+     * Parses a conditional 'if' statement with an optional 'else' branch.
+     * <p>
+     * <b>Grammar rule:</b> {@code ifStmt -> 'if' expression statement ( 'else' statement )?}
+     * </p>
+     *
+     * @return An {@link IfStmt} AST node encapsulating condition and branches.
+     */
+    private Stmt ifStatement() {
+        Expr condition = expression();
+
+        Stmt thenBranch = statement();
+
+        Stmt elseBranch = null;
+        if (match(TokenType.ELSE)) elseBranch = statement();
+
+        return new IfStmt(condition, thenBranch, elseBranch);
+    }
+
+    /**
+     * Parses an iterative 'while' loop statement.
+     * <p>
+     * <b>Grammar rule:</b> {@code whileStmt -> 'while' expression statement}
+     * </p>
+     *
+     * @return A {@link WhileStmt} AST node encapsulating the condition expression and body statement.
+     */
+    private Stmt whileStatement() {
+        Expr condition = expression();
+
+        Stmt body = statement();
+
+        return new WhileStmt(condition, body);
+    }
+
+    /**
+     * Parses a 'for' loop statement and desugars it into an AST composed of local block scopes and a 'while' loop.
+     * <p>
+     * <b>Grammar rule:</b> {@code forStmt -> 'for' '(' ( varDecl | statement | ';' ) expression? ';' statement? ')' statement}
+     * </p>
+     *
+     * @return A {@link Stmt} AST node representing the desugared 'for' loop.
+     */
+    private Stmt forStatement() {
+        // Consomme '('
+        consume(TokenType.LPAREN, "'(' attendu après 'for'.");
+
+        // 1. Initialisation
+        Stmt initializer;
+        if (match(TokenType.SEMICOLON)) initializer = null;
+
+
+        else if (match(TokenType.CONST)) {
+            initializer = varDeclaration(true);
+            consume(TokenType.SEMICOLON, "';' attendu après l'initialisation de la boucle 'for'.");
+        } else if (match(TokenType.MUT)) {
+            initializer = varDeclaration(false);
+            consume(TokenType.SEMICOLON, "';' attendu après l'initialisation de la boucle 'for'.");
+        } else {
+            initializer = statement();
+            consume(TokenType.SEMICOLON, "';' attendu après l'initialisation de la boucle 'for'.");
+        }
+
+        // 2. Condition
+        Expr condition = null;
+        if (!check(TokenType.SEMICOLON)) condition = expression();
+        consume(TokenType.SEMICOLON, "';' attendu après la condition du 'for'.");
+
+
+        // 3. Incrémentation
+        Stmt increment = null;
+        if (!check(TokenType.RPAREN)) {
+            Token name = consume(TokenType.IDENTIFIER, "Nom de variable attendu pour l'incrément.");
+            consume(TokenType.ASSIGN, "'=' attendu après le nom de la variable d'incrément.");
+            Expr value = expression();
+            increment = new AssignStmt(name, value);
+        }
+
+        // Consomme ')'
+        consume(TokenType.RPAREN, "')' attendu après les clauses du 'for'.");
+
+        // 4. Corps de la boucle
+        Stmt body = statement();
+
+        // --- DÉSUCRAGE SYNTAXIQUE (AST Desugaring) ---
+
+        // Ajouter l'incrément à la fin du corps
+        if (increment != null) body = new BlockStmt(List.of(body, increment));
+
+
+        // Condition par défaut à true si absente (ex: for(;;))
+        if (condition == null) condition = new LiteralExpr(true);
+
+        // Transformer en boucle while
+        body = new WhileStmt(condition, body);
+
+        // Encapsuler l'initialisation et le while dans un bloc parent
+        if (initializer != null) body = new BlockStmt(List.of(initializer, body));
+
+        return body;
+    }
+
+    /**
+     * Parses unary operations ({@code !} for logical NOT, {@code -} for numeric negation).
+     * <p>
+     * <b>Grammar rule:</b> {@code unary -> ( '!' | '-' ) unary | primary}
+     * </p>
+     *
+     * @return An {@link Expr} node representing a unary subtree or a primary expression.
+     */
+    private Expr unary() {
+        if (match(TokenType.BANG, TokenType.MINUS)) {
+            Token operator = previous();
+            Expr right = unary();
+            return new UnaryExpr(operator, right);
+        }
+        return primary();
+    }
 }

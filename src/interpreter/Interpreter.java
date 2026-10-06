@@ -5,6 +5,7 @@ import lexer.Token;
 import lexer.TokenType;
 
 import java.util.List;
+import java.util.function.UnaryOperator;
 
 /**
  * Executes GEM Abstract Syntax Tree (AST) statement nodes and evaluates expressions.
@@ -47,6 +48,24 @@ public class Interpreter {
      */
     private void execute(Stmt stmt) {
         switch (stmt) {
+            // WHILE Statement
+            case WhileStmt whileStmt -> {
+                while (isTruthy(evaluate(whileStmt.getCondition()))) {
+                    execute(whileStmt.getBody());
+                }
+            }
+
+            // IF Statement
+            case IfStmt ifStmt -> {
+                Object conditionValue = evaluate(ifStmt.getCondition());
+
+                if (isTruthy(conditionValue)) execute(ifStmt.getThenBranch());
+
+                else if (ifStmt.getElseBranch() != null) execute(ifStmt.getElseBranch());
+
+
+            }
+
             // Block Statement ({ ... })
             case BlockStmt blockStmt -> executeBlock(blockStmt.getStatements(), new Environment(this.environment));
             
@@ -87,21 +106,42 @@ public class Interpreter {
      * @throws RuntimeException If the expression node type is not supported by the evaluator.
      */
     private Object evaluate(Expr expr) {
-        // Literal values
-        if (expr instanceof LiteralExpr literal) return parseLiteralValue(literal.getValue());
+        return switch (expr) {
+            case LiteralExpr literal -> parseLiteralValue(literal.getValue());
 
-        // Variable identifier references
-        if (expr instanceof VariableExpr variable) return environment.get(variable.getName());
+            case VariableExpr variable -> environment.get(variable.getName());
 
-        // Evaluation of Binary Operations
-        if (expr instanceof BinaryExpr binary) {
-            Object left = evaluate(binary.getLeft());
-            Object right = evaluate(binary.getRight());
+            case UnaryExpr unary -> {
+                Object right = evaluate(unary.getRight());
+                if (unary.getOperator().getType() == TokenType.BANG) yield !isTruthy(right);
 
-            return evaluateBinary(binary.getOperator(), left, right);
-        }
+                if (unary.getOperator().getType() == TokenType.MINUS) yield -(int) right;
 
-        throw new RuntimeException("Expression non supportée à l'exécution : " + expr.getClass().getSimpleName());
+                throw new RuntimeException("Ligne " + unary.getOperator().getLine() +
+                        " : Opérateur unaire non supporté '" + unary.getOperator().getLexeme() + "'");
+            }
+
+            case LogicalExpr logical -> {
+                Object left = evaluate(logical.getLeft());
+
+                // Evaluation en court-circuit (Short-circuit evaluation)
+                if (logical.getOperator().getType() == TokenType.OR_OR) {
+                    if (isTruthy(left)) yield true;
+                } else {
+                    if (!isTruthy(left)) yield false;
+                }
+
+                yield isTruthy(evaluate(logical.getRight()));
+            }
+
+            case BinaryExpr binary -> {
+                Object left = evaluate(binary.getLeft());
+                Object right = evaluate(binary.getRight());
+                yield evaluateBinary(binary.getOperator(), left, right);
+            }
+
+            default -> throw new RuntimeException("Expression non supportée à l'exécution : " + expr.getClass().getSimpleName());
+        };
     }
 
     /**
@@ -165,7 +205,9 @@ public class Interpreter {
                 }
 
                 case GREATER -> lInt > rInt;
+                case GREATER_EQUAL -> lInt >= rInt;
                 case LESS -> lInt < rInt;
+                case LESS_EQUAL -> lInt <= rInt;
 
                 default -> throw new RuntimeException("Ligne " + operator.getLine() + " : Opérateur binaire non supporté.");
 
@@ -196,6 +238,19 @@ public class Interpreter {
         } finally {
             this.environment = previous;
         }
+    }
+
+    /**
+     * Asserts that a runtime value evaluated as a condition is strictly a {@link Boolean}.
+     *
+     * @param object The evaluated runtime value to validate.
+     * @return The primitive {@code boolean} value.
+     * @throws RuntimeException If the condition value is not a {@link Boolean}.
+     */
+    private boolean isTruthy(Object object) {
+        if (object instanceof Boolean b) return  b;
+
+        throw new RuntimeException("La condition d'une instruction 'if' doit être de type booléen.");
     }
 
 }
