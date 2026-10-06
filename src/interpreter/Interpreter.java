@@ -5,6 +5,7 @@ import lexer.Token;
 import lexer.TokenType;
 
 import java.util.List;
+import java.util.function.UnaryOperator;
 
 /**
  * Executes GEM Abstract Syntax Tree (AST) statement nodes and evaluates expressions.
@@ -105,21 +106,42 @@ public class Interpreter {
      * @throws RuntimeException If the expression node type is not supported by the evaluator.
      */
     private Object evaluate(Expr expr) {
-        // Literal values
-        if (expr instanceof LiteralExpr literal) return parseLiteralValue(literal.getValue());
+        return switch (expr) {
+            case LiteralExpr literal -> parseLiteralValue(literal.getValue());
 
-        // Variable identifier references
-        if (expr instanceof VariableExpr variable) return environment.get(variable.getName());
+            case VariableExpr variable -> environment.get(variable.getName());
 
-        // Evaluation of Binary Operations
-        if (expr instanceof BinaryExpr binary) {
-            Object left = evaluate(binary.getLeft());
-            Object right = evaluate(binary.getRight());
+            case UnaryExpr unary -> {
+                Object right = evaluate(unary.getRight());
+                if (unary.getOperator().getType() == TokenType.BANG) yield !isTruthy(right);
 
-            return evaluateBinary(binary.getOperator(), left, right);
-        }
+                if (unary.getOperator().getType() == TokenType.MINUS) yield -(int) right;
 
-        throw new RuntimeException("Expression non supportée à l'exécution : " + expr.getClass().getSimpleName());
+                throw new RuntimeException("Ligne " + unary.getOperator().getLine() +
+                        " : Opérateur unaire non supporté '" + unary.getOperator().getLexeme() + "'");
+            }
+
+            case LogicalExpr logical -> {
+                Object left = evaluate(logical.getLeft());
+
+                // Short-circuit evaluation logic
+                if (logical.getOperator().getType() == TokenType.OR_OR) {
+                    if (isTruthy(left)) yield true;
+                } else {
+                    if (!isTruthy(left)) yield false;
+                }
+
+                yield isTruthy(evaluate(logical.getRight()));
+            }
+
+            case BinaryExpr binary -> {
+                Object left = evaluate(binary.getLeft());
+                Object right = evaluate(binary.getRight());
+                yield evaluateBinary(binary.getOperator(), left, right);
+            }
+
+            default -> throw new RuntimeException("Expression non supportée à l'exécution : " + expr.getClass().getSimpleName());
+        };
     }
 
     /**
