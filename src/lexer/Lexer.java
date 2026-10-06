@@ -43,6 +43,7 @@ public class Lexer {
         keywords.put("bool", TokenType.TYPE_BOOL);
         keywords.put("true", TokenType.BOOLEAN);
         keywords.put("false", TokenType.BOOLEAN);
+        keywords.put("for", TokenType.FOR);
     }
 
 
@@ -114,6 +115,10 @@ public class Lexer {
                 break;
             case '<':
                 addToken(TokenType.LESS);
+                break;
+
+            case ';':
+                addToken(TokenType.SEMICOLON);
                 break;
 
             // Prise en charge de '=' vs '=='
