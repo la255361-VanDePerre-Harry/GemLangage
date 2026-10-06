@@ -119,11 +119,13 @@ public class Lexer {
                 break;
 
             case '>':
-                addToken(TokenType.GREATER);
+                addToken(match('=') ? TokenType.GREATER_EQUAL : TokenType.GREATER);
                 break;
             case '<':
-                addToken(TokenType.LESS);
+                addToken(match('=') ? TokenType.LESS_EQUAL : TokenType.LESS);
                 break;
+
+
 
             case ';':
                 addToken(TokenType.SEMICOLON);

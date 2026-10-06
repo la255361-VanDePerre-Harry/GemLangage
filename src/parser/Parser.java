@@ -213,16 +213,17 @@ public class Parser {
     }
 
     /**
-     * Parses relational comparison operations ({@code >} and {@code <}).
+     * Parses comparison operations (<, <=, >, >=).
      * <p>
-     * <b>Grammar rule:</b> {@code comparison -> term ( ('>' | '<') term )*}
+     * <b>Grammar rule:</b> {@code comparison -> term ( ( '>' | '>=' | '<' | '<=' ) term )*}
      * </p>
-     *
-     * @return An {@link Expr} node representing a relational comparison subtree.
+
+     * @return An {@link Expr} node representing a comparison subtree.
      */
     private Expr comparison() {
         Expr expr = term();
-        while (match(TokenType.GREATER, TokenType.LESS)) {
+
+        while (match(TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL)) {
             Token operator = previous();
             Expr right = term();
             expr = new BinaryExpr(expr, operator, right);

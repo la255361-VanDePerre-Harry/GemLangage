@@ -205,7 +205,9 @@ public class Interpreter {
                 }
 
                 case GREATER -> lInt > rInt;
+                case GREATER_EQUAL -> lInt >= rInt;
                 case LESS -> lInt < rInt;
+                case LESS_EQUAL -> lInt <= rInt;
 
                 default -> throw new RuntimeException("Ligne " + operator.getLine() + " : Opérateur binaire non supporté.");
 
