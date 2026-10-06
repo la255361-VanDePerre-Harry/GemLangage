@@ -1,6 +1,7 @@
 package interpreter;
 
 import ast.FunctionStmt;
+import lexer.Token;
 
 import java.util.List;
 
@@ -31,6 +32,20 @@ public class GemFunction {
      */
     public Object call(Interpreter interpreter, List<Object> arguments) {
         Environment environment = new Environment(interpreter.getGlobals());
+
+        for (int i = 0; i < declaration.getParameters().size(); i++) {
+            Token param = declaration.getParameters().get(i);
+            Object value = arguments.get(i);
+            environment.define(param.getLexeme(), value);
+        }
+
+        try {
+            interpreter.executeBlock(declaration.getBody(), environment);
+        } catch (ReturnException returnValue) {
+            return returnValue.getValue();
+        }
+
+        return null;
     }
 
     /**
