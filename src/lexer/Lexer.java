@@ -117,6 +117,10 @@ public class Lexer {
                 addToken(TokenType.LESS);
                 break;
 
+            case ';':
+                addToken(TokenType.SEMICOLON);
+                break;
+
             // Prise en charge de '=' vs '=='
             case '=':
                 if (match('=')) {
