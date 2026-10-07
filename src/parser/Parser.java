@@ -144,15 +144,54 @@ public class Parser {
             }
 
             case IDENTIFIER -> {
-                // Look ahead to distinguish variable assignment (identifier = ...) from expression calls (identifier(...))
+                Token name = peek();
+
+                // Incrementation
+                if (checkNext(TokenType.PLUS_PLUS)) {
+                    advance(); // Consommation de l'id
+                    advance(); // Consommation de l'increment
+
+                    Token plusOp = new Token(TokenType.PLUS, "+", name.getLine());
+                    Expr one = new LiteralExpr(1);
+                    Expr addExpr = new BinaryExpr(new VariableExpr(name), plusOp, one);
+                    yield new AssignStmt(name, addExpr);
+                }
+
+                // Decrementation
+                if (checkNext(TokenType.MINUS_MINUS)) {
+                    advance(); // Consomation de l'id
+                    advance(); // Consommation de l'increment
+
+                    Token minusOp = new Token(TokenType.MINUS, "-", name.getLine());
+                    Expr one = new LiteralExpr(1);
+                    Expr subExpr = new BinaryExpr(new VariableExpr(name), minusOp, one);
+                    yield new AssignStmt(name, subExpr);
+                }
+
+                // Composed affectations
+                if (checkNext(TokenType.PLUS_EQUAL) || checkNext(TokenType.MINUS_EQUAL) || checkNext(TokenType.STAR_EQUAL) || checkNext(TokenType.SLASH_EQUAL)) {
+                    advance(); // consommation de l'id
+
+                    Token compoundOp = advance(); // Consommation -> += / -= / *= / /=
+
+                    TokenType binaryType = getBinaryTypeFromCompound(compoundOp.getType());
+                    Token binaryOp = new Token(binaryType, getOperatorLexeme(binaryType), compoundOp.getLine());
+
+                    Expr rightValue = expression();
+                    Expr binaryExpr = new BinaryExpr(new VariableExpr(name), binaryOp, rightValue);
+                    yield new AssignStmt(name, binaryExpr);
+                }
+
+                // Basic affectation
                 if (checkNext(TokenType.ASSIGN)) {
-                    Token name = advance();
+                    advance(); // consommation de l'ID
+
                     consume(TokenType.ASSIGN, "Expected '=' after variable name.");
                     Expr value = expression();
                     yield new AssignStmt(name, value);
                 }
 
-                // Fall back to a general standalone expression statement (e.g., standalone function call 'greet(...)')
+                // Fallback to auto expressions
                 yield new ExpressionStmt(expression());
             }
 
@@ -622,5 +661,31 @@ public class Parser {
     private boolean checkNext(TokenType type) {
         if (current + 1 >= tokens.size()) return false;
         return tokens.get(current + 1).getType() == type;
+    }
+
+    /**
+     * Maps a compound assignment token type to its binary arithmetic operator equivalent.
+     */
+    private TokenType getBinaryTypeFromCompound(TokenType compoundType) {
+        return switch (compoundType) {
+            case PLUS_EQUAL -> TokenType.PLUS;
+            case MINUS_EQUAL -> TokenType.MINUS;
+            case STAR_EQUAL -> TokenType.STAR;
+            case SLASH_EQUAL -> TokenType.SLASH;
+            default -> throw new IllegalArgumentException("Unexpected compound operator type: " + compoundType);
+        };
+    }
+
+    /**
+     * Retrieves the textual lexeme for a given binary operator token type.
+     */
+    private String getOperatorLexeme(TokenType type) {
+        return switch (type) {
+            case PLUS -> "+";
+            case MINUS -> "-";
+            case STAR -> "*";
+            case SLASH -> "/";
+            default -> "";
+        };
     }
 }
