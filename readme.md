@@ -3,7 +3,6 @@
 [![Language](https://img.shields.io/badge/Language-Java_17%2B-orange.svg)](https://www.oracle.com/java/)
 [![Architecture](https://img.shields.io/badge/Architecture-Tree--Walking_Interpreter-blue.svg)]()
 [![Status](https://img.shields.io/badge/Status-Active_Development-brightgreen.svg)]()
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 **GEM** is a strongly-typed, imperative, interpreted programming language engineered in Java. Designed with a clean and clear syntax, GEM offers explicit variable mutability control, static primitive typing, first-class functions, lexical block scoping, and syntactic desugaring.
 
