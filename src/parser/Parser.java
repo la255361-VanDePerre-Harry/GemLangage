@@ -570,12 +570,7 @@ public class Parser {
 
         // 3. Parse loop increment clause
         Stmt increment = null;
-        if (!check(TokenType.RPAREN)) {
-            Token name = consume(TokenType.IDENTIFIER, "Expected variable name for loop increment.");
-            consume(TokenType.ASSIGN, "Expected '=' after increment variable name.");
-            Expr value = expression();
-            increment = new AssignStmt(name, value);
-        }
+        if (!check(TokenType.RPAREN)) increment = statement();
 
         consume(TokenType.RPAREN, "Expected ')' after 'for' loop clauses.");
 
