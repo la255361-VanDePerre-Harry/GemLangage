@@ -28,6 +28,9 @@ public enum TokenType {
     PRINT,
     /** Iterative loop keyword ('for'). */
     FOR,
+    /** Flows controls */
+    BREAK,
+    CONTINUE,
 
     // =========================================================================
     // Native Data Types
