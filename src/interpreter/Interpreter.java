@@ -69,9 +69,19 @@ public class Interpreter {
             // Iterative While Loop Statement
             case WhileStmt whileStmt -> {
                 while (isTruthy(evaluate(whileStmt.getCondition()))) {
-                    execute(whileStmt.getBody());
+                    try {
+                        execute(whileStmt.getBody());
+                    } catch (BreakException b) {
+                        break; // Interrompt la boucle Java
+                    } catch (ContinueException c) {
+                        continue; // Passe à l'itération suivante de la boucle Java
+                    }
                 }
             }
+
+            case BreakStmt breakStmt -> throw new BreakException();
+
+            case ContinueStmt continueStmt -> throw new ContinueException();
 
             // Conditional If/Else Branching Statement
             case IfStmt ifStmt -> {
