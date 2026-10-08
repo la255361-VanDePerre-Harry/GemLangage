@@ -112,6 +112,16 @@ public class Parser {
      */
     private Stmt statement() {
         return switch (peek().getType()) {
+            case BREAK -> {
+                Token keyword = advance(); // Consomme 'break'
+                yield new BreakStmt(keyword);
+            }
+
+            case CONTINUE -> {
+                Token keyword = advance(); // Consomme 'continue'
+                yield new ContinueStmt(keyword);
+            }
+
             case RETURN -> {
                 advance();
                 yield returnStatement();
