@@ -112,6 +112,16 @@ public class Parser {
      */
     private Stmt statement() {
         return switch (peek().getType()) {
+            case BREAK -> {
+                Token keyword = advance(); // Consomme 'break'
+                yield new BreakStmt(keyword);
+            }
+
+            case CONTINUE -> {
+                Token keyword = advance(); // Consomme 'continue'
+                yield new ContinueStmt(keyword);
+            }
+
             case RETURN -> {
                 advance();
                 yield returnStatement();
@@ -560,39 +570,14 @@ public class Parser {
 
         // 3. Parse loop increment clause
         Stmt increment = null;
-        if (!check(TokenType.RPAREN)) {
-            Token name = consume(TokenType.IDENTIFIER, "Expected variable name for loop increment.");
-            consume(TokenType.ASSIGN, "Expected '=' after increment variable name.");
-            Expr value = expression();
-            increment = new AssignStmt(name, value);
-        }
+        if (!check(TokenType.RPAREN)) increment = statement();
 
         consume(TokenType.RPAREN, "Expected ')' after 'for' loop clauses.");
 
         // 4. Parse loop body statement
         Stmt body = statement();
 
-        // --- AST SYNTACTIC DESUGARING ---
-
-        // Append increment statement to the bottom of the loop body
-        if (increment != null) {
-            body = new BlockStmt(List.of(body, increment));
-        }
-
-        // Default condition to 'true' if omitted (e.g., for(;;))
-        if (condition == null) {
-            condition = new LiteralExpr(true);
-        }
-
-        // Desugar into equivalent 'while' loop structure
-        body = new WhileStmt(condition, body);
-
-        // Enclose initializer and while loop inside a new block scope
-        if (initializer != null) {
-            body = new BlockStmt(List.of(initializer, body));
-        }
-
-        return body;
+        return new ForStmt(initializer, condition, increment, body);
     }
 
     /**

@@ -48,6 +48,36 @@ public class Interpreter {
      */
     private void execute(Stmt stmt) {
         switch (stmt) {
+            // For stmt
+            case ForStmt forStmt -> {
+                // Scope local pour l'initialiseur (ex: mut i = 0)
+                Environment previous = this.environment;
+                this.environment = new Environment(previous);
+
+                try {
+                    if (forStmt.getInitializer() != null) {
+                        execute(forStmt.getInitializer());
+                    }
+
+                    while (forStmt.getCondition() == null || isTruthy(evaluate(forStmt.getCondition()))) {
+                        try {
+                            execute(forStmt.getBody());
+                        } catch (ContinueException c) {
+                            // Le continue est intercepté ici ! L'exécution passe directement à l'incrément ci-dessous.
+                        } catch (BreakException b) {
+                            break; // Sort de la boucle Java
+                        }
+
+                        // L'incrément est Garanti d'être exécuté à chaque tour (même après un continue)
+                        if (forStmt.getIncrement() != null) {
+                            execute(forStmt.getIncrement());
+                        }
+                    }
+                } finally {
+                    this.environment = previous;
+                }
+            }
+
             // Expression Statement (e.g., standalone function call 'greet(...)')
             case ExpressionStmt exprStmt -> evaluate(exprStmt.getExpression());
 
@@ -69,9 +99,19 @@ public class Interpreter {
             // Iterative While Loop Statement
             case WhileStmt whileStmt -> {
                 while (isTruthy(evaluate(whileStmt.getCondition()))) {
-                    execute(whileStmt.getBody());
+                    try {
+                        execute(whileStmt.getBody());
+                    } catch (BreakException b) {
+                        break; // Interrompt la boucle Java
+                    } catch (ContinueException c) {
+                        continue; // Passe à l'itération suivante de la boucle Java
+                    }
                 }
             }
+
+            case BreakStmt breakStmt -> throw new BreakException();
+
+            case ContinueStmt continueStmt -> throw new ContinueException();
 
             // Conditional If/Else Branching Statement
             case IfStmt ifStmt -> {
