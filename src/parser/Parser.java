@@ -577,27 +577,7 @@ public class Parser {
         // 4. Parse loop body statement
         Stmt body = statement();
 
-        // --- AST SYNTACTIC DESUGARING ---
-
-        // Append increment statement to the bottom of the loop body
-        if (increment != null) {
-            body = new BlockStmt(List.of(body, increment));
-        }
-
-        // Default condition to 'true' if omitted (e.g., for(;;))
-        if (condition == null) {
-            condition = new LiteralExpr(true);
-        }
-
-        // Desugar into equivalent 'while' loop structure
-        body = new WhileStmt(condition, body);
-
-        // Enclose initializer and while loop inside a new block scope
-        if (initializer != null) {
-            body = new BlockStmt(List.of(initializer, body));
-        }
-
-        return body;
+        return new ForStmt(initializer, condition, increment, body);
     }
 
     /**
